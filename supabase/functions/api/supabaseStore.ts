@@ -68,8 +68,26 @@ export function supabaseStore(db: SupabaseClient): Store {
     async bump(bucket, ttl) {
       return check(await db.rpc('bump_bucket', { p_bucket: bucket, p_ttl_seconds: ttl })) as any;
     },
+    async getEntitlement(userId, reportId) {
+      return check(await db.from('entitlements').select('*').eq('user_id', userId).eq('report_id', reportId)
+        .order('paid_until', { ascending: false }).limit(1).maybeSingle()) as any;
+    },
+    async grantEntitlement(row) {
+      const res = await db.from('entitlements').insert(row);
+      if (res.error?.code === '23505') return false; // this checkout session was already applied
+      check(res);
+      return true;
+    },
+    async countRuns(reportId, kind, sinceIso) {
+      const res = await db.from('scan_runs').select('id', { count: 'exact', head: true }).eq('report_id', reportId).eq('kind', kind).gte('started_at', sinceIso);
+      if (res.error) throw new Error(res.error.message);
+      return res.count ?? 0;
+    },
     async dueMonitoredReports(nowIso, limit) {
-      const ids = (check(await db.from('memberships').select('report_id').eq('monitor', true)) as any[]).map((m) => m.report_id);
+      const paid = (check(await db.from('entitlements').select('user_id,report_id').gt('paid_until', nowIso)) as any[]);
+      const monitored = (check(await db.from('memberships').select('user_id,report_id').eq('monitor', true)) as any[]);
+      const paidSet = new Set(paid.map((e) => `${e.user_id}:${e.report_id}`));
+      const ids = monitored.filter((m) => paidSet.has(`${m.user_id}:${m.report_id}`)).map((m) => m.report_id);
       if (!ids.length) return [];
       return check(await db.from('reports').select('*').in('id', [...new Set(ids)]).lte('next_scan_at', nowIso)
         .order('next_scan_at', { ascending: true }).limit(limit)) as any;

@@ -1,5 +1,5 @@
 // In-memory Store for tests and the in-browser demo.
-import type { FindingRow, MembershipRow, ReportRow, RunRow, Store, TaskRow } from './service.ts';
+import type { EntitlementRow, FindingRow, MembershipRow, ReportRow, RunRow, Store, TaskRow } from './service.ts';
 
 export function memoryStore(): Store & { dump(): unknown } {
   const reports = new Map<string, ReportRow>();
@@ -9,6 +9,8 @@ export function memoryStore(): Store & { dump(): unknown } {
   const tasks = new Map<string, TaskRow>();
   const runs: RunRow[] = [];
   const buckets = new Map<string, number>();
+  const ents = new Map<string, EntitlementRow>();
+  const sessions = new Set<string>();
   let seq = 0;
   const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 
@@ -81,8 +83,22 @@ export function memoryStore(): Store & { dump(): unknown } {
       buckets.set(bucket, n);
       return n;
     },
+    async getEntitlement(userId, reportId) {
+      const e = ents.get(`${userId}:${reportId}`);
+      return e ? clone(e) : null;
+    },
+    async grantEntitlement(row) {
+      if (sessions.has(row.session_id)) return false;
+      sessions.add(row.session_id);
+      ents.set(`${row.user_id}:${row.report_id}`, clone(row));
+      return true;
+    },
+    async countRuns(reportId, kind, sinceIso) {
+      return runs.filter((r) => r.report_id === reportId && r.kind === kind && r.started_at >= sinceIso).length;
+    },
     async dueMonitoredReports(nowIso, limit) {
-      const monitored = new Set([...members.values()].filter((m) => m.monitor).map((m) => m.report_id));
+      const paid = new Set([...ents.values()].filter((e) => e.paid_until > nowIso).map((e) => `${e.user_id}:${e.report_id}`));
+      const monitored = new Set([...members.values()].filter((m) => m.monitor && paid.has(`${m.user_id}:${m.report_id}`)).map((m) => m.report_id));
       return [...reports.values()].filter((r) => monitored.has(r.id) && r.next_scan_at && r.next_scan_at <= nowIso).slice(0, limit).map(clone);
     },
     dump() {

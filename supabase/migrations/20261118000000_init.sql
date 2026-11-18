@@ -61,7 +61,7 @@ create table public.tasks (
 create table public.scan_runs (
   id bigint generated always as identity primary key,
   report_id uuid not null references public.reports(id) on delete cascade,
-  kind text not null check (kind in ('initial', 'manual', 'scheduled')),
+  kind text not null check (kind in ('initial', 'refresh', 'manual', 'scheduled')),
   started_at timestamptz not null default now(),
   finished_at timestamptz,
   status text not null default 'running',
@@ -107,7 +107,7 @@ end;
 $$;
 revoke all on function public.bump_bucket(text, integer) from public, anon, authenticated;
 
--- Weekly re-scans: pg_cron calls the api function every hour; it picks up reports whose next_scan_at has passed.
+-- Re-checks (every 15 days for paid homes): pg_cron calls the api function every hour; it picks up reports whose next_scan_at has passed.
 -- Enable the pg_cron and pg_net extensions in the Supabase dashboard, then run (replace the placeholders):
 --
 --   select cron.schedule('property-footprint-rescan', '17 * * * *', $$

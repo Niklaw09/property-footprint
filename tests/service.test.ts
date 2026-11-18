@@ -40,14 +40,32 @@ describe('service', () => {
     expect(claimToken).toMatch(/^[0-9a-f]{48}$/);
   });
 
-  it('claim token unlocks the full report after sign-in, once', async () => {
-    const { svc } = setup();
+  it('claim token saves the home after sign-in; payment unlocks it for 12 months', async () => {
+    const { svc, advance } = setup();
     const { view, claimToken } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: null, ip: '1.1.1.1' });
-    const full = await svc.getReport({ reportId: view.id, userId: 'u1', claimToken });
-    expect(full.member).toBe(true);
-    expect(full.findings.every((f) => !f.locked)).toBe(true);
+    const saved = await svc.getReport({ reportId: view.id, userId: 'u1', claimToken });
+    expect(saved.member).toBe(true);
+    expect(saved.unlocked).toBe(false);
+    expect(saved.findings.filter((f) => !f.locked)).toHaveLength(1);
+    expect(saved.price).toEqual({ cents: 2900, currency: 'usd' });
     const other = await svc.getReport({ reportId: view.id, userId: 'u2', claimToken });
     expect(other.member).toBe(false);
+    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 2900 })).toBe(true);
+    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 2900 })).toBe(false); // webhook retry
+    const full = await svc.getReport({ reportId: view.id, userId: 'u1' });
+    expect(full.unlocked).toBe(true);
+    expect(full.findings.every((f) => !f.locked)).toBe(true);
+    expect(full.rescansLeft).toBe(2);
+    advance(366 * 86400000);
+    expect((await svc.getReport({ reportId: view.id, userId: 'u1' })).unlocked).toBe(false);
+  });
+
+  it('tracking and re-scans need payment', async () => {
+    const { svc } = setup();
+    const { view } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    await expect(svc.updateTask({ userId: 'u1', reportId: view.id, fid: 'x', status: 'sent' })).rejects.toMatchObject({ code: 'payment_required' });
+    await expect(svc.rescan({ userId: 'u1', reportId: view.id })).rejects.toMatchObject({ code: 'payment_required' });
+    expect((await svc.runDue()).scanned).toBe(0);
   });
 
   it('limits anonymous new scans per IP per day, but repeat addresses stay free', async () => {
@@ -87,17 +105,19 @@ describe('service', () => {
     await expect(svc.scan({ address: 'hello', userId: null, ip: 'x' })).rejects.toBeInstanceOf(ServiceError);
   });
 
-  it('tracks tasks, re-scans weekly and verifies removals', async () => {
+  it('tracks tasks, re-checks twice a month, limits manual re-scans and verifies removals', async () => {
     const { svc, advance, setGone } = setup();
-    const { view } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    const { view: v0 } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    await svc.grantPurchase({ userId: 'u1', reportId: v0.id, sessionId: 'cs_2', amountCents: 2900 });
+    const view = await svc.getReport({ reportId: v0.id, userId: 'u1' });
     const estately = view.findings.find((f) => !f.locked && f.siteKey === 'estately')!;
     await svc.updateTask({ userId: 'u1', reportId: view.id, fid: estately.id, status: 'sent' });
     // Site takes the page down
     results = { general: results.general.slice(1) };
     setGone(['https://www.estately.com/listings/info/14425-american-kestrel-dr-austin-tx-78738--2']);
-    advance(3 * 86400000);
+    advance(10 * 86400000);
     expect((await svc.runDue()).scanned).toBe(0); // not due yet
-    advance(5 * 86400000);
+    advance(6 * 86400000);
     expect((await svc.runDue()).scanned).toBe(1);
     const after = await svc.getReport({ reportId: view.id, userId: 'u1' });
     const e = after.findings.find((f) => f.id === estately.id) as any;
@@ -107,7 +127,13 @@ describe('service', () => {
     expect(after.history[0]).toMatchObject({ kind: 'scheduled', goneCount: 1 });
     const mine = await svc.myReports('u1');
     expect(mine[0]).toMatchObject({ removed: 1, total: 3 });
-    await expect(svc.rescan({ userId: 'u1', reportId: view.id })).rejects.toMatchObject({ code: 'too_soon' });
+    await expect(svc.rescan({ userId: 'u1', reportId: view.id })).rejects.toMatchObject({ code: 'too_soon' }); // 12h gap
+    advance(13 * 3600000);
+    await svc.rescan({ userId: 'u1', reportId: view.id });
+    advance(13 * 3600000);
+    await svc.rescan({ userId: 'u1', reportId: view.id });
+    advance(13 * 3600000);
+    await expect(svc.rescan({ userId: 'u1', reportId: view.id })).rejects.toMatchObject({ code: 'too_soon' }); // 2 per 30 days
     await expect(svc.updateTask({ userId: 'u2', reportId: view.id, fid: estately.id, status: 'sent' })).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

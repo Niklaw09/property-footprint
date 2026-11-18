@@ -63,6 +63,13 @@ export function demoApi(): Api {
     rescan: (id) => wrap(() => svc.rescan({ userId: uid()!, reportId: id })),
     mine: () => wrap(() => svc.myReports(uid()!)),
     async selftest() { throw new ApiError('not_configured'); },
+    async checkout(id) {
+      // Demo: pretend the $29 payment succeeded.
+      await delay(600);
+      await wrap(() => svc.grantPurchase({ userId: uid()!, reportId: id, sessionId: `demo_${id}`, amountCents: 2900 }));
+      return `#/r/${id}`;
+    },
+    async confirm() { return { ok: true }; },
     async session() { return user; },
     onAuth(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     async sendMagicLink(email) {

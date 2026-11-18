@@ -32,10 +32,16 @@ export default function App() {
       // Returning from a sign-in link: ?next=#/r/<id>&code=...  -> go to the page they came from.
       const qs = new URLSearchParams(window.location.search);
       const next = qs.get('next');
-      if (next) {
-        window.history.replaceState(null, '', window.location.pathname + next);
+      // Returning from Stripe Checkout: ?paid=cs_...&next=#/r/<id>. The webhook also grants access; this makes it instant.
+      const paid = qs.get('paid');
+      if (paid && /^cs_[A-Za-z0-9_]+$/.test(paid)) {
+        try { await a.confirm(paid); } catch { /* the webhook will still apply it */ }
+      }
+      if (next || paid) {
+        const target = next || window.location.hash || '#/';
+        window.history.replaceState(null, '', window.location.pathname + target);
         window.dispatchEvent(new HashChangeEvent('hashchange'));
-        if (parseRoute(next).name === 'home') go({ name: 'homes' });
+        if (next && parseRoute(next).name === 'home') go({ name: 'homes' });
       }
     });
     return () => off();

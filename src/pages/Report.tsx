@@ -61,7 +61,19 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   if (error) return <div className="mx-auto max-w-3xl px-5 py-16 text-center text-navy-600">{error}</div>;
   if (!view) return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-sage-600" /></div>;
 
-  const signInHref = href({ name: 'signin', next: `#/r/${id}` });
+  const [buying, setBuying] = useState(false);
+  const unlock = async () => {
+    if (!ctx.user) { go({ name: 'signin', next: `#/r/${id}` }); return; }
+    setBuying(true);
+    setNotice(null);
+    try {
+      const url = await ctx.api.checkout(view.id, lang);
+      if (url.startsWith('#')) { window.location.hash = url; await load(); setBuying(false); } else window.location.href = url;
+    } catch (e) {
+      setNotice(errorText(e, t));
+      setBuying(false);
+    }
+  };
   const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c) })).filter((g) => g.items.length);
 
   const setTask = async (f: OpenFinding, status: TaskStatus, note?: string) => {
@@ -98,7 +110,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         <div className="card flex flex-col justify-center">
           <p className="font-serif text-5xl font-semibold text-navy-900">{view.counts.total}</p>
           <p className="mt-1 text-sm text-navy-500">{t.sourcesFound}</p>
-          {view.member && view.counts.total + view.counts.gone > 0 && (
+          {view.unlocked && view.counts.total + view.counts.gone > 0 && (
             <div className="mt-4">
               <div className="h-2 overflow-hidden rounded-full bg-navy-50">
                 <div className="h-full rounded-full bg-sage-500 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
@@ -121,11 +133,11 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         </div>
       </div>
 
-      {!view.member && view.counts.total > 1 && (
-        <div className="mt-4 flex flex-col items-start gap-3 rounded-xl border border-sage-200 bg-sage-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-navy-700">{t.lockedBody}</p>
-          <a href={signInHref} className="btn-primary shrink-0 py-2.5 text-sm">{t.lockedCta}<ArrowRight className="h-4 w-4" /></a>
-        </div>
+      {!view.unlocked && view.counts.total > 0 && (
+        <PriceCard view={view} signedIn={!!ctx.user} buying={buying} onUnlock={unlock} notice={notice} />
+      )}
+      {view.unlocked && view.paidUntil && (
+        <p className="mt-3 text-xs text-navy-500">{t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
       )}
 
       {view.counts.total === 0 && (
@@ -155,8 +167,8 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
           <h2 className="section-title">{catLabel(c, t)} <span className="ml-1 text-base font-normal text-navy-400">{items.length}</span></h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {items.map((f) => f.locked
-              ? <LockedCard key={f.id} f={f} signInHref={signInHref} />
-              : <FindingCard key={f.id} f={f} member={view.member} onRemove={() => setDrawer({ pb: playbookFor(f.coveredBy ?? f.playbook), finding: f })} onStatus={(s) => setTask(f, s)} />)}
+              ? <LockedCard key={f.id} f={f} onUnlock={unlock} />
+              : <FindingCard key={f.id} f={f} member={view.unlocked} onRemove={() => setDrawer({ pb: playbookFor(f.coveredBy ?? f.playbook), finding: f })} onStatus={(s) => setTask(f, s)} />)}
           </div>
         </section>
       ))}
@@ -190,7 +202,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       </section>
 
       {/* Monitoring */}
-      {view.member && (
+      {view.unlocked && (
         <section className="mt-10 grid gap-3 md:grid-cols-2">
           <div className="card">
             <h2 className="flex items-center gap-2 font-semibold text-navy-900"><RefreshCw className="h-4 w-4 text-sage-600" />{t.monitorTitle}</h2>
@@ -198,7 +210,8 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
               <input type="checkbox" checked={view.monitor !== false} onChange={async (e) => { await ctx.api.membership(view.id, { monitor: e.target.checked }); load(); }} className="h-4 w-4 accent-sage-600" />
               {view.monitor !== false ? `${t.monitorOn} ${fmtDate(view.nextScanAt, lang)}` : t.monitorOff}
             </label>
-            <button onClick={rescan} disabled={rescanning} className="btn-secondary mt-4 py-2">
+            <p className="mt-2 text-xs text-navy-500">{t.rescansLeft}: {view.rescansLeft}</p>
+            <button onClick={rescan} disabled={rescanning || view.rescansLeft === 0} className="btn-secondary mt-3 py-2">
               {rescanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{t.rescanNow}
             </button>
             {notice && <p className="mt-2 text-xs text-navy-500">{notice}</p>}
@@ -223,8 +236,8 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
           view={view}
           onClose={() => setDrawer(null)}
           onOwnerName={(n) => view.member && ctx.api.membership(view.id, { ownerName: n })}
-          onSave={view.member && drawer.finding ? async (s, note) => { await setTask(drawer.finding!, s, note); setDrawer(null); } : undefined}
-          signInHref={!view.member ? signInHref : undefined}
+          onSave={view.unlocked && drawer.finding ? async (s, note) => { await setTask(drawer.finding!, s, note); setDrawer(null); } : undefined}
+          onUnlock={!view.unlocked ? () => { setDrawer(null); unlock(); } : undefined}
         />
       )}
     </div>
@@ -288,10 +301,31 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
   );
 }
 
-function LockedCard({ f, signInHref }: { f: Extract<ViewFinding, { locked: true }>; signInHref: string }) {
+function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: () => void; notice: string | null }) {
+  const { t } = useLang();
+  const dollars = `$${(view.price.cents / 100).toFixed(view.price.cents % 100 ? 2 : 0)}`;
+  return (
+    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+      <div>
+        <h2 className="font-serif text-lg font-semibold text-navy-900">{t.priceTitle.replace('{price}', dollars)}</h2>
+        <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
+          {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+        </ul>
+        <p className="mt-2 text-xs text-navy-500">{t.priceNote}</p>
+        {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+      </div>
+      <button onClick={onUnlock} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
+        {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
+        {signedIn ? t.buyCta.replace('{price}', dollars) : t.signInToBuy}
+      </button>
+    </div>
+  );
+}
+
+function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>; onUnlock: () => void }) {
   const { t } = useLang();
   return (
-    <a href={signInHref} className="card group flex flex-col border-dashed transition hover:border-sage-300">
+    <button onClick={onUnlock} className="card group flex flex-col border-dashed text-left transition hover:border-sage-300">
       <div className="flex items-center justify-between">
         <p className="font-semibold text-navy-900">{f.siteName}</p>
         <Lock className="h-4 w-4 text-navy-300 group-hover:text-sage-600" />
@@ -300,13 +334,13 @@ function LockedCard({ f, signInHref }: { f: Extract<ViewFinding, { locked: true 
         {f.media.filter((m) => m !== 'listing').map((m) => <span key={m} className="chip">{mediaLabel(m, t)}</span>)}
       </div>
       <p className="mt-3 text-xs font-medium text-sage-700">{t.lockedTitle}</p>
-    </a>
+    </button>
   );
 }
 
-function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, signInHref }: {
+function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, onUnlock }: {
   drawer: Drawer; view: ReportView; onClose: () => void; onOwnerName: (n: string) => void;
-  onSave?: (s: TaskStatus, note: string) => Promise<void>; signInHref?: string;
+  onSave?: (s: TaskStatus, note: string) => Promise<void>; onUnlock?: () => void;
 }) {
   const { t } = useLang();
   const f = drawer.finding;
@@ -347,8 +381,8 @@ function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, signInHref 
             <button onClick={() => onSave(status, note)} className="btn-primary mt-3 py-2.5 text-sm">{t.save}</button>
           </div>
         )}
-        {signInHref && f && (
-          <a href={signInHref} onClick={() => go({ name: 'signin', next: `#/r/${view.id}` })} className="btn-primary mt-6 w-full text-sm">{t.lockedCta}</a>
+        {onUnlock && f && (
+          <button onClick={onUnlock} className="btn-primary mt-6 w-full text-sm">{t.lockedCta}</button>
         )}
       </div>
     </div>

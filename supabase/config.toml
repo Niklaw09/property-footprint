@@ -3,3 +3,7 @@ project_id = "property-footprint"
 [functions.api]
 # The function checks the user's JWT itself so the hourly cron job (which sends a shared secret) can call it.
 verify_jwt = false
+
+[functions.stripe-webhook]
+# Stripe calls this without a Supabase JWT; the function checks Stripe's signature instead.
+verify_jwt = false
