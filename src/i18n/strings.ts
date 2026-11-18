@@ -42,6 +42,11 @@ const en = {
   errFailed: 'The search services didn’t respond, so we can’t say what’s online yet. Please try again in a few minutes.',
   errNotConfigured: 'Scanning isn’t switched on for this site yet.',
   errGeneric: 'Something went wrong. Please try again.',
+  errLimitAnon: 'You’ve used today’s free scans from this device. Sign in (it’s free) to scan more homes.',
+  errLimitUser: 'You’ve reached today’s scan limit for your account. Your homes keep getting re-checked every week.',
+  errLimitHomes: 'Your account is following the maximum number of homes. Contact us if you need more.',
+  errCaptcha: 'We couldn’t confirm you’re not a bot. Please complete the check and try again.',
+  verifying: 'Checking your browser…',
   errNotFound: 'We couldn’t find that report.',
 
   reportFor: 'Report for',
@@ -197,6 +202,11 @@ const es: Strings = {
   errFailed: 'Los servicios de búsqueda no respondieron, así que aún no podemos decir qué hay en internet. Inténtalo en unos minutos.',
   errNotConfigured: 'El escaneo aún no está activado en este sitio.',
   errGeneric: 'Algo salió mal. Inténtalo de nuevo.',
+  errLimitAnon: 'Ya usaste los escaneos gratis de hoy en este dispositivo. Inicia sesión (es gratis) para escanear más casas.',
+  errLimitUser: 'Llegaste al límite de escaneos de hoy para tu cuenta. Tus casas se siguen revisando cada semana.',
+  errLimitHomes: 'Tu cuenta sigue el número máximo de casas. Contáctanos si necesitas más.',
+  errCaptcha: 'No pudimos confirmar que no eres un bot. Completa la verificación e inténtalo de nuevo.',
+  verifying: 'Verificando tu navegador…',
   errNotFound: 'No encontramos ese informe.',
 
   reportFor: 'Informe de',

@@ -50,12 +50,36 @@ describe('service', () => {
     expect(other.member).toBe(false);
   });
 
-  it('rate limits per IP with a busy error, not a failure', async () => {
+  it('limits anonymous new scans per IP per day, but repeat addresses stay free', async () => {
     const { svc } = setup();
-    for (let i = 0; i < 6; i++) await svc.scan({ address: `${100 + i} Main St, Austin, TX 78701`, userId: null, ip: '2.2.2.2' });
-    await expect(svc.scan({ address: '200 Main St, Austin, TX 78701', userId: null, ip: '2.2.2.2' })).rejects.toMatchObject({ code: 'busy' });
-    // cached reports don't count
+    for (let i = 0; i < 3; i++) await svc.scan({ address: `${100 + i} Main St, Austin, TX 78701`, userId: null, ip: '2.2.2.2' });
+    await expect(svc.scan({ address: '200 Main St, Austin, TX 78701', userId: null, ip: '2.2.2.2' })).rejects.toMatchObject({ code: 'limit_anon' });
+    // cached address: no search spend, allowed
     await expect(svc.scan({ address: '100 Main St, Austin, TX 78701', userId: null, ip: '2.2.2.2' })).resolves.toBeTruthy();
+    // another visitor is unaffected
+    await expect(svc.scan({ address: '201 Main St, Austin, TX 78701', userId: null, ip: '3.3.3.3' })).resolves.toBeTruthy();
+    // signing in lifts the anonymous limit
+    await expect(svc.scan({ address: '202 Main St, Austin, TX 78701', userId: 'u9', ip: '2.2.2.2' })).resolves.toBeTruthy();
+  });
+
+  it('limits accounts, bursts and the whole site', async () => {
+    const { svc, advance } = setup();
+    for (let i = 0; i < 6; i++) { await svc.scan({ address: `${300 + i} Oak St, Austin, TX 78701`, userId: 'u1', ip: '4.4.4.4' }); }
+    await expect(svc.scan({ address: '399 Oak St, Austin, TX 78701', userId: 'u1', ip: '4.4.4.4' })).rejects.toMatchObject({ code: 'busy' });
+    advance(11 * 60000);
+    for (let i = 0; i < 4; i++) await svc.scan({ address: `${400 + i} Oak St, Austin, TX 78701`, userId: 'u1', ip: '4.4.4.4' });
+    await expect(svc.scan({ address: '499 Oak St, Austin, TX 78701', userId: 'u1', ip: '4.4.4.4' })).rejects.toMatchObject({ code: 'limit_user' });
+    const capped = createService({ store: memoryStore(), engine: () => ({ provider: fixtureProvider(results), lookups: [zillow] }), limits: { perDay: 1 } });
+    await capped.scan({ address: '1 Elm St, Austin, TX 78701', userId: null, ip: 'a' });
+    await expect(capped.scan({ address: '2 Elm St, Austin, TX 78701', userId: null, ip: 'b' })).rejects.toMatchObject({ code: 'daily_limit' });
+  });
+
+  it('caps homes per account', async () => {
+    const svc = createService({ store: memoryStore(), engine: () => ({ provider: fixtureProvider(results), lookups: [zillow] }), limits: { maxHomesPerUser: 2 } });
+    await svc.scan({ address: '1 Elm St, Austin, TX 78701', userId: 'u', ip: 'a' });
+    await svc.scan({ address: '2 Elm St, Austin, TX 78701', userId: 'u', ip: 'a' });
+    await expect(svc.scan({ address: '3 Elm St, Austin, TX 78701', userId: 'u', ip: 'a' })).rejects.toMatchObject({ code: 'limit_homes' });
+    await expect(svc.scan({ address: '1 Elm St, Austin, TX 78701', userId: 'u', ip: 'a' })).resolves.toBeTruthy();
   });
 
   it('rejects bad addresses clearly', async () => {

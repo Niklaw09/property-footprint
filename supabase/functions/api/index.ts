@@ -1,12 +1,13 @@
 // Property Footprint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
 //
-// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, optional SCAN_DAILY_LIMIT.
+// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, optional SCAN_DAILY_LIMIT, IP_HASH_SALT.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { createService, httpVerifier, ServiceError } from '../_shared/service.ts';
 import { braveProvider, serperProvider, type SearchProvider } from '../_shared/providers.ts';
 import { supabaseStore } from './supabaseStore.ts';
+import { verifyTurnstile } from '../_shared/turnstile.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,7 @@ const service = createService({
   engine: () => ({ provider: provider() }),
   verifyGone: httpVerifier(),
   limits: { perDay: Number(env('SCAN_DAILY_LIMIT')) || 300 },
+  ipSalt: env('IP_HASH_SALT') || env('CRON_SECRET'),
 });
 
 function json(body: unknown, status = 200): Response {
@@ -35,7 +37,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 const STATUS: Record<ServiceError['code'], number> = {
-  invalid_address: 400, busy: 429, daily_limit: 429, scan_failed: 502, not_found: 404, forbidden: 403, too_soon: 429,
+  invalid_address: 400, busy: 429, daily_limit: 429, limit_anon: 429, limit_user: 429, limit_homes: 429, captcha: 403, scan_failed: 502, not_found: 404, forbidden: 403, too_soon: 429,
 };
 
 async function userIdFrom(req: Request): Promise<string | null> {
@@ -64,7 +66,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = await userIdFrom(req);
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+    const ip = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
     const needUser = () => {
       if (!userId) throw new ServiceError('forbidden', 'sign_in_required');
       return userId;
@@ -72,9 +74,13 @@ Deno.serve(async (req) => {
 
     switch (body.action) {
       case 'config':
-        return json({ live: !!provider() });
+        return json({ live: !!provider(), captcha: !!env('TURNSTILE_SECRET_KEY') });
       case 'scan':
         if (!provider()) return json({ error: 'not_configured' }, 503);
+        // Bot check on every scan request (invisible for most people). Tokens are single-use.
+        if (env('TURNSTILE_SECRET_KEY') && !(await verifyTurnstile(body.captchaToken, env('TURNSTILE_SECRET_KEY'), ip))) {
+          return json({ error: 'captcha' }, 403);
+        }
         return json(await service.scan({ address: String(body.address ?? ''), userId, ip }));
       case 'report':
         return json(await service.getReport({ reportId: String(body.reportId ?? ''), userId, claimToken: body.claimToken ?? null }));

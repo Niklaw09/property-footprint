@@ -1,31 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Turnstile, { captchaEnabled, type TurnstileHandle } from '@/components/Turnstile';
 import { Search, Lightbulb, Building2, Box, Video, Images, ShieldCheck, ListChecks, RefreshCw, Check, Loader2 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
-import { claims } from '@/lib/api';
+import { ApiError, claims } from '@/lib/api';
 import { viewCache } from '@/lib/cache';
 import { errorText } from '@/lib/errors';
-import { go } from '@/lib/router';
+import { go, href } from '@/lib/router';
 import type { AppCtx } from '@/App';
 
 export default function Landing({ ctx }: { ctx: AppCtx }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [address, setAddress] = useState('');
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle | null>(null);
+  const needsCaptcha = captchaEnabled && ctx.api.mode === 'live';
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address.trim()) return;
+    if (!address.trim() || (needsCaptcha && !captcha)) return;
     setError(null);
+    setErrorCode(null);
     setScanning(true);
     try {
-      const { view, claimToken } = await ctx.api.scan(address.trim());
+      const { view, claimToken } = await ctx.api.scan(address.trim(), captcha);
       if (claimToken) claims.set(view.id, claimToken);
       viewCache.set(view.id, view);
       go({ name: 'report', id: view.id });
     } catch (err) {
       setError(errorText(err, t));
+      setErrorCode(err instanceof ApiError ? err.code : null);
       setScanning(false);
+      turnstile.current?.reset(); // tokens are single-use
     }
   };
 
@@ -45,10 +53,16 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
                 <input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t.addressPlaceholder}
                   autoComplete="street-address" maxLength={200}
                   className="w-full rounded-lg bg-transparent px-4 py-3.5 text-base text-navy-900 placeholder:text-navy-300 focus:outline-none sm:flex-1" />
-                <button type="submit" disabled={!address.trim()} className="btn-primary shrink-0"><Search className="h-5 w-5" />{t.scanButton}</button>
+                <button type="submit" disabled={!address.trim() || (needsCaptcha && !captcha)} className="btn-primary shrink-0"><Search className="h-5 w-5" />{t.scanButton}</button>
               </div>
+              {needsCaptcha && <Turnstile onToken={setCaptcha} lang={lang} handle={turnstile} />}
               <p className="mt-2 text-xs text-navy-400">{t.heroHint}</p>
-              {error && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+              {error && (
+                <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                  {errorCode === 'limit_anon' && <> <a className="link" href={href({ name: 'signin', next: '#/' })}>{t.navSignIn}</a></>}
+                </p>
+              )}
             </form>
             <p className="mt-6 flex items-center justify-center gap-2 text-sm text-navy-500 sm:justify-start">
               <Lightbulb className="h-4 w-4 shrink-0 text-navy-400" />{t.heroTip}

@@ -86,12 +86,24 @@ export interface ServiceConfig {
   now?: () => Date;
   randomToken?: () => string;
   hash?: (s: string) => Promise<string>;
-  limits?: { perIpPer10Min?: number; perDay?: number; reuseHours?: number; manualRescanHours?: number };
+  limits?: Partial<Limits>;
+  ipSalt?: string;
   verifyGone?: (url: string) => Promise<'gone' | 'live' | 'unknown'>;
 }
 
+export interface Limits {
+  anyPerIpPer10Min: number; // every scan request, including cached addresses
+  perIpPer10Min: number; // new (uncached) scans, burst protection
+  anonPerIpPerDay: number; // new scans without an account
+  userPerDay: number; // new scans per signed-in account
+  maxHomesPerUser: number; // homes one account can follow
+  perDay: number; // site-wide cap on search API spend
+  reuseHours: number; // same address within this window reuses the last scan
+  manualRescanHours: number;
+}
+
 export class ServiceError extends Error {
-  constructor(public code: 'invalid_address' | 'busy' | 'daily_limit' | 'scan_failed' | 'not_found' | 'forbidden' | 'too_soon', public detail?: string) {
+  constructor(public code: 'invalid_address' | 'busy' | 'daily_limit' | 'limit_anon' | 'limit_user' | 'limit_homes' | 'captcha' | 'scan_failed' | 'not_found' | 'forbidden' | 'too_soon', public detail?: string) {
     super(code);
   }
 }
@@ -160,7 +172,11 @@ export function createService(cfg: ServiceConfig) {
   const now = cfg.now ?? (() => new Date());
   const hash = cfg.hash ?? defaultHash;
   const token = cfg.randomToken ?? defaultToken;
-  const limits = { perIpPer10Min: 6, perDay: 300, reuseHours: 24, manualRescanHours: 12, ...cfg.limits };
+  const limits: Limits = {
+    anyPerIpPer10Min: 30, perIpPer10Min: 6, anonPerIpPerDay: 3, userPerDay: 10, maxHomesPerUser: 25,
+    perDay: 300, reuseHours: 24, manualRescanHours: 12, ...cfg.limits,
+  };
+  const ipKey = (ip: string) => hash(`${cfg.ipSalt ?? ''}:${ip}`);
 
   async function runAndStore(report: ReportRow, kind: RunRow['kind']): Promise<ReportRow> {
     const started = now().toISOString();
@@ -263,14 +279,25 @@ export function createService(cfg: ServiceConfig) {
         throw new ServiceError('invalid_address', e instanceof AddressError ? e.code : undefined);
       }
       const key = addressKey(address);
+      const t = now().getTime();
+      const day = now().toISOString().slice(0, 10);
+      const ipHash = await ipKey(input.ip);
+      if ((await store.bump(`any:${ipHash}:${Math.floor(t / 600000)}`, 600)) > limits.anyPerIpPer10Min) throw new ServiceError('busy');
       let report = await store.getReportByKey(key);
-      const fresh = report?.last_scanned_at && report.last_status === 'ok' && now().getTime() - new Date(report.last_scanned_at).getTime() < limits.reuseHours * 3600 * 1000;
+      if (input.userId) {
+        const homes = await store.listMemberships(input.userId);
+        if (homes.length >= limits.maxHomesPerUser && !homes.some((h) => h.report_id === report?.id)) throw new ServiceError('limit_homes');
+      }
+      const fresh = report?.last_scanned_at && report.last_status === 'ok' && t - new Date(report.last_scanned_at).getTime() < limits.reuseHours * 3600 * 1000;
       if (!fresh) {
-        const ipCount = await store.bump(`ip:${await hash(input.ip)}:${Math.floor(now().getTime() / 600000)}`, 600);
-        if (ipCount > limits.perIpPer10Min) throw new ServiceError('busy');
-        const day = now().toISOString().slice(0, 10);
-        const dayCount = await store.bump(`day:${day}`, 2 * 86400);
-        if (dayCount > limits.perDay) throw new ServiceError('daily_limit');
+        // Only scans that spend search credits count toward these limits.
+        if ((await store.bump(`ip:${ipHash}:${Math.floor(t / 600000)}`, 600)) > limits.perIpPer10Min) throw new ServiceError('busy');
+        if (input.userId) {
+          if ((await store.bump(`user:${input.userId}:${day}`, 86400)) > limits.userPerDay) throw new ServiceError('limit_user');
+        } else if ((await store.bump(`anon:${ipHash}:${day}`, 86400)) > limits.anonPerIpPerDay) {
+          throw new ServiceError('limit_anon');
+        }
+        if ((await store.bump(`day:${day}`, 2 * 86400)) > limits.perDay) throw new ServiceError('daily_limit');
         if (!report) {
           report = await store.insertReport({ address_key: key, address, display: displayAddress(address), last_scanned_at: null, next_scan_at: null, scan_count: 0, last_status: 'pending', checks: [] });
         }

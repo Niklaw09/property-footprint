@@ -10,7 +10,7 @@ export class ApiError extends Error {
 
 export interface Api {
   mode: 'live' | 'demo';
-  scan(address: string): Promise<{ view: ReportView; claimToken: string | null }>;
+  scan(address: string, captchaToken?: string | null): Promise<{ view: ReportView; claimToken: string | null }>;
   report(reportId: string, claimToken?: string | null): Promise<ReportView>;
   task(reportId: string, fid: string, status: TaskStatus, note?: string): Promise<void>;
   membership(reportId: string, patch: { ownerName?: string; monitor?: boolean }): Promise<void>;
@@ -41,7 +41,7 @@ function liveApi(sb: SupabaseClient): Api {
   const toUser = (s: Session | null) => (s?.user ? { email: s.user.email ?? '' } : null);
   return {
     mode: 'live',
-    scan: (address) => call({ action: 'scan', address }),
+    scan: (address, captchaToken) => call({ action: 'scan', address, captchaToken }),
     report: (reportId, claimToken) => call({ action: 'report', reportId, claimToken }),
     task: (reportId, fid, status, note) => call({ action: 'task', reportId, fid, status, note }),
     membership: (reportId, patch) => call({ action: 'membership', reportId, ...patch }),

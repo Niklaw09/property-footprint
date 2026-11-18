@@ -10,6 +10,10 @@ export function errorText(e: unknown, t: Strings): string {
     case 'scan_failed': return t.errFailed;
     case 'not_configured': return t.errNotConfigured;
     case 'not_found': return t.errNotFound;
+    case 'limit_anon': return t.errLimitAnon;
+    case 'limit_user': return t.errLimitUser;
+    case 'limit_homes': return t.errLimitHomes;
+    case 'captcha': return t.errCaptcha;
     default: return t.errGeneric;
   }
 }
