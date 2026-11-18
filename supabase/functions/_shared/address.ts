@@ -116,13 +116,7 @@ export function parseAddress(input: string): Address {
   let city: string | undefined;
   let streetPart: string;
 
-  // Pull "ST 12345" or "State Name 12345" from the end of the whole string.
-  let tail = parts.length > 1 ? parts.slice(1).join(' ') : '';
   streetPart = parts[0];
-  if (parts.length === 1) {
-    // No commas: try to find state + zip at the end and a suffix boundary for the city.
-    tail = '';
-  }
 
   const extractStateZip = (s: string): string => {
     let rest = s.trim();

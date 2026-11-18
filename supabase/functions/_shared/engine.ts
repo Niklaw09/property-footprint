@@ -2,7 +2,7 @@
 
 import { type Address, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
 import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
-import { SEARCH_GROUPS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, siteFor, unknownSite } from './sites.ts';
+import { SITES, SEARCH_GROUPS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, siteFor, unknownSite } from './sites.ts';
 
 export interface Finding {
   id: string; // stable hash of the canonical URL
@@ -80,6 +80,11 @@ function detectMedia(site: Site, c: Candidate): MediaType[] {
   return [...set];
 }
 
+function siteRank(key: string): number {
+  const i = SITES.findIndex((s) => s.key === key);
+  return i === -1 ? 999 : i;
+}
+
 const SUFFIX_SET = new Set(Object.values(SUFFIXES));
 const CATEGORY_ORDER: SiteCategory[] = ['portal', 'tour', 'property_site', 'video', 'brokerage', 'rental', 'social', 'other'];
 
@@ -147,6 +152,7 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
   findings.sort((x, y) =>
     (x.confidence === 'exact' ? 0 : 1) - (y.confidence === 'exact' ? 0 : 1) ||
     CATEGORY_ORDER.indexOf(x.category) - CATEGORY_ORDER.indexOf(y.category) ||
+    siteRank(x.siteKey) - siteRank(y.siteKey) ||
     y.media.length - x.media.length ||
     x.domain.localeCompare(y.domain));
   return findings;
