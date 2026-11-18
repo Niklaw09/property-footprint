@@ -1,0 +1,5 @@
+project_id = "property-footprint"
+
+[functions.api]
+# The function checks the user's JWT itself so the hourly cron job (which sends a shared secret) can call it.
+verify_jwt = false
