@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient, type Session } from '@supabase/supab
 import type { MyReportSummary, ReportView, TaskStatus } from '@engine/service.ts';
 
 export type { ReportView, MyReportSummary, TaskStatus };
+export type SelftestResult = Awaited<ReturnType<typeof import('@engine/selftest.ts').runSelftest>>;
 export type { OpenFinding, LockedFinding, ViewFinding } from '@engine/service.ts';
 
 export class ApiError extends Error {
@@ -16,6 +17,7 @@ export interface Api {
   membership(reportId: string, patch: { ownerName?: string; monitor?: boolean }): Promise<void>;
   rescan(reportId: string): Promise<ReportView>;
   mine(): Promise<MyReportSummary[]>;
+  selftest(): Promise<SelftestResult>;
   // auth
   session(): Promise<{ email: string } | null>;
   onAuth(cb: (s: { email: string } | null) => void): () => void;
@@ -47,6 +49,7 @@ function liveApi(sb: SupabaseClient): Api {
     membership: (reportId, patch) => call({ action: 'membership', reportId, ...patch }),
     rescan: (reportId) => call({ action: 'rescan', reportId }),
     mine: () => call({ action: 'mine' }),
+    selftest: () => call({ action: 'selftest' }),
     async session() { return toUser((await sb.auth.getSession()).data.session); },
     onAuth(cb) {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(toUser(s)));

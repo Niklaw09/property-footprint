@@ -7,7 +7,8 @@ export type Route =
   | { name: 'guides' }
   | { name: 'guide'; key: string }
   | { name: 'signin'; next?: string }
-  | { name: 'homes' };
+  | { name: 'homes' }
+  | { name: 'selftest' };
 
 export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '').split('?')[0];
@@ -18,6 +19,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'guides') return { name: 'guides' };
   if (parts[0] === 'signin') return { name: 'signin', next: qs.get('next') ?? undefined };
   if (parts[0] === 'homes') return { name: 'homes' };
+  if (parts[0] === 'selftest') return { name: 'selftest' };
   return { name: 'home' };
 }
 
@@ -29,6 +31,7 @@ export function href(r: Route): string {
     case 'guide': return `#/guides/${r.key}`;
     case 'signin': return `#/signin${r.next ? `?next=${encodeURIComponent(r.next)}` : ''}`;
     case 'homes': return '#/homes';
+    case 'selftest': return '#/selftest';
   }
 }
 

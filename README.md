@@ -38,6 +38,14 @@ SERPER_API_KEY=... npx vitest run tests/live-accuracy.test.ts
 
 Import this repository with **Import from GitHub**. Bolt's Supabase integration can run the migration and deploy `supabase/functions/api`; add the secrets in the Supabase dashboard (Edge Functions → Secrets).
 
+### Accuracy check on the live server
+
+Open `https://<your-site>/#/selftest` and press **Run accuracy check**. It scans the 10 test homes from the server (so it also shows whether Zillow's and Redfin's lookups work from Supabase), using about 100 search credits. It is limited to 3 runs per day.
+
+### Sign-in emails
+
+Supabase's built-in email sender only allows a few emails per hour. Before real traffic, add a custom SMTP provider (for example Resend) under Authentication → Emails → SMTP.
+
 ## Layout
 
 ```

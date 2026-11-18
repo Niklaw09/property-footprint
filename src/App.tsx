@@ -9,6 +9,7 @@ import Guides from '@/pages/Guides';
 import Guide from '@/pages/Guide';
 import SignIn from '@/pages/SignIn';
 import MyHomes from '@/pages/MyHomes';
+import Selftest from '@/pages/Selftest';
 import { useLang } from '@/lib/i18n';
 
 export interface AppCtx {
@@ -56,6 +57,7 @@ export default function App() {
         {route.name === 'guide' && <Guide pbKey={route.key} />}
         {route.name === 'signin' && <SignIn ctx={ctx} next={route.next} />}
         {route.name === 'homes' && <MyHomes ctx={ctx} />}
+        {route.name === 'selftest' && <Selftest ctx={ctx} />}
       </main>
       <Footer />
     </div>

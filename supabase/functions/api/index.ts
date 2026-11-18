@@ -8,10 +8,11 @@ import { createService, httpVerifier, ServiceError } from '../_shared/service.ts
 import { braveProvider, serperProvider, type SearchProvider } from '../_shared/providers.ts';
 import { supabaseStore } from './supabaseStore.ts';
 import { verifyTurnstile } from '../_shared/turnstile.ts';
+import { runSelftest } from '../_shared/selftest.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -51,12 +52,30 @@ async function userIdFrom(req: Request): Promise<string | null> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
   let body: Record<string, any>;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'bad_json' }, 400);
+  if (req.method === 'GET') {
+    body = Object.fromEntries(new URL(req.url).searchParams);
+  } else if (req.method === 'POST') {
+    try {
+      body = await req.json();
+    } catch {
+      return json({ error: 'bad_json' }, 400);
+    }
+  } else {
+    return json({ error: 'method_not_allowed' }, 405);
+  }
+
+  // Accuracy self-test on the 10 public test homes. ~100 search queries, so at most 3 runs per day.
+  if (body.action === 'selftest') {
+    if (!provider()) return json({ error: 'not_configured' }, 503);
+    try {
+      const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
+      if ((n as number) > 3) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
+      return json(await runSelftest(() => ({ provider: provider() })));
+    } catch (e) {
+      console.error('selftest', e);
+      return json({ error: 'server_error' }, 500);
+    }
   }
 
   try {

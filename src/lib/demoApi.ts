@@ -62,6 +62,7 @@ export function demoApi(): Api {
     membership: (id, patch) => wrap(() => svc.updateMembership({ userId: uid()!, reportId: id, ...patch })),
     rescan: (id) => wrap(() => svc.rescan({ userId: uid()!, reportId: id })),
     mine: () => wrap(() => svc.myReports(uid()!)),
+    async selftest() { throw new ApiError('not_configured'); },
     async session() { return user; },
     onAuth(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     async sendMagicLink(email) {

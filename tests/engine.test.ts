@@ -84,3 +84,17 @@ describe('runScan', () => {
     expect(buildQueries(a).length).toBeLessThanOrEqual(12);
   });
 });
+
+import { runSelftest, SELFTEST_HOMES } from '@engine/selftest.ts';
+describe('selftest', () => {
+  it('scores known pages, matching Zillow by zpid', async () => {
+    const z: PortalLookup = { key: 'zillow', async run(line) {
+      if (!line.startsWith('14425')) return [];
+      return [{ url: 'https://www.zillow.com/homedetails/70333738_zpid/', title: '', snippet: '', via: 'lookup:zillow', addressText: '14425 American Kestrel Dr Austin TX 78738' }];
+    } };
+    const r = await runSelftest(() => ({ provider: fixtureProvider({}), lookups: [z] }));
+    expect(r.rows).toHaveLength(SELFTEST_HOMES.length);
+    expect(r.rows.find((x) => x.address.startsWith('14425'))!.found).toBe(1);
+    expect(r.found).toBe(1);
+  });
+});
