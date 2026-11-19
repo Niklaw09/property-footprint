@@ -1,10 +1,11 @@
-// Built-in accuracy self-test: scans 10 real homes sold in fall 2026 and reports how many of their known pages were found.
+// Built-in accuracy self-test: scans 20 real homes (10 sold in fall 2026, 10 more in new markets) and reports how many of their known pages were found.
 // `expect` is the original hand-collected list. `confirmed` adds the pages a live run found with an exact address
 // match and that were checked by hand after the Nov 19, 2026 runs (junk, other homes and unverifiable social posts left out).
 // Together they are the page list the headline score is measured against. Add new real pages here after each run.
 import { parseAddress } from './address.ts';
 import { runScan, type EngineOptions } from './engine.ts';
 import { isPrioritySite, siteFor } from './sites.ts';
+import type { Candidate, PortalLookup, SearchProvider, SearchQuery } from './providers.ts';
 
 /**
  * The headline counts priority sites only: major portals, national brokerages, social and video. These are
@@ -15,7 +16,9 @@ export function isNamedSite(url: string): boolean {
   return isPrioritySite(siteFor(url));
 }
 
-export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: string[] }[] = [
+/** Set A: the first 10 homes (Nov 18). Set B: 10 more added Nov 19 for new markets: a Chicago and a Somerville condo,
+ *  rural Vermont, Seattle, San Diego, Las Vegas new construction, Columbus, Raleigh, Kansas City and Houston. */
+export const SELFTEST_HOMES: { address: string; set?: 'A' | 'B'; expect: string[]; confirmed?: string[] }[] = [
   {
     "address": "14425 American Kestrel Dr, Austin, TX 78738",
     "expect": [
@@ -381,6 +384,129 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.exitnorthstarrealty.com/sold-listing/detail/1068755727/2727-W-43rd-ST-402-Minneapolis-MN",
       "https://fergusonrealty.net/sold-listing/detail/1200031527/2727-W-43rd-ST-402-Minneapolis-MN"
     ]
+  },
+  {
+    "address": "40 E 9th St #616, Chicago, IL 60605",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.trulia.com/home/40-e-9th-st-616-chicago-il-60605-70471540",
+      "https://www.compass.com/homedetails/40-E-9th-St-Unit-616-Chicago-IL-60605/1WG5FT_pid",
+      "https://www.bhgre.com/home/detail/il/chicago/40-e-9th-st-apt-616/lid-P00800000H5C3Jy6CqYOFHbFryKDotOxNYpin5eC",
+      "https://www.coldwellbankerhomes.com/il/chicago/40-e-9th-st-616/pid_69316148",
+      "https://www.homes.com/property/40-e-9th-st-chicago-il-unit-616/e019vfn7fyn8z/",
+      "https://www.atproperties.com/12539098/40-e-9th-street-616-chicago-illinois-60605-nei",
+      "https://www.dreamtown.com/properties/12539098/40-e-9th-street-616",
+      "https://www.hellocondo.com/chicago-il/40-e-9th-st-unit-616-chicago-il-60605"
+    ]
+  },
+  {
+    "address": "114 N 84th St, Seattle, WA 98103",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.zillow.com/homedetails/114-N-84th-St-Seattle-WA-98103/48836185_zpid",
+      "https://www.trulia.com/home/114-n-84th-st-seattle-wa-98103-48836185",
+      "https://www.bhgre.com/home/detail/wa/seattle/114-n-84th-st/lid-P00800000HAYxUDuwf4qnpmz3iiO3pbOhr4NxoBW",
+      "https://inservice.exprealty.com/seattle-wa-real-estate/114-n-84th-st",
+      "https://jonathanpearlstein.evrealestate.com/listing-detail/1181826784/114-N-84th-ST-Seattle-WA",
+      "https://everydoorrealestate.com/listing/nwmls/2518448/Seattle/114-N-84th-Street/",
+      "https://bestinwest.roveridx.com/wa/seattle/greenwood/114-n-84th-street/"
+    ]
+  },
+  {
+    "address": "184 Danyow Rd, Sheldon, VT 05483",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.zillow.com/homedetails/184-Danyow-Rd-Sheldon-VT-05483/75433354_zpid",
+      "https://www.compass.com/homedetails/184-Danyow-Rd-Sheldon-VT-05450/5B456_pid",
+      "https://www.raveis.com/prop/5074739/184-danyow-road-sheldon-vt-05450",
+      "https://www.homefront.com/homes/vt/sheldon/property/184-danyow-road-decc66aa-e057-3440-b3ca-e632b2fa291d",
+      "https://www.hickokandboardman.com/real-estate/sheldon/184-danyow-road/5074739.html",
+      "https://www.hickokandboardman.com/real-estate/sheldon/184-danyow-road/4928813.html",
+      "https://www.hickokandboardman.com/real-estate/sheldon/184-danyow-road/4656898.html"
+    ]
+  },
+  {
+    "address": "921 Court Way, San Diego, CA 92103",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.century21.com/homes/detail/ca/san-diego/921-court-way/lid-P00800000H7KbEr0rhUrSmYI5u5tbHeOsWaTa0yb",
+      "https://svpremier.com/real-estate-search/listing/SanDiego/260005258/San-Diego/921-Court-Way",
+      "https://cardozasellssd.com/home-search/listings/4413529080815351256-921-Court-Way"
+    ]
+  },
+  {
+    "address": "1963 Hydrangea Pl, Las Vegas, NV 89106",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.trulia.com/home/1963-hydrangea-pl-las-vegas-nv-89106-460698723",
+      "https://www.century21.com/homes/detail/nv/las-vegas/1963-hydrangea-pl/lid-P00800000H8VyteKdYSpNhX3Y8Iv3exYYwNtaHiu",
+      "https://www.zoocasa.com/las-vegas-nv-real-estate/1963-hydrangea-pl",
+      "https://ziffy.ai/listings/1963-hydrangea-pl-las-vegas-nv-89106-82979229"
+    ]
+  },
+  {
+    "address": "1727 Huy Rd, Columbus, OH 43224",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.zillow.com/homedetails/1727-Huy-Rd-Columbus-OH-43224/34026613_zpid",
+      "https://www.coldwellbanker.com/oh/columbus/1727-huy-rd/lid-P00800000HAvSNjar9NkTId9VgWPA5gRQXZevtoT",
+      "https://www.howardhanna.com/property/1727-huy-road-columbus-oh-43224-390003777463",
+      "https://ziffy.ai/listings/1727-huy-rd-columbus-oh-43224-88190082"
+    ]
+  },
+  {
+    "address": "301 Latimer Rd, Raleigh, NC 27609",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.trulia.com/home/301-latimer-rd-raleigh-nc-27609-6379455",
+      "https://www.coldwellbankerhomes.com/nc/raleigh/301-latimer-rd/pid_68021167",
+      "https://www.jimallen.com/homes/301-Latimer-Road-Raleigh-NC-27609/11de29bbdaee9fe9e0c76d99db01ab3e",
+      "https://martihampton.com/listing/triangle/10128076/Raleigh/301-Latimer-Road",
+      "https://raleighrealty.com/home/301-latimer-rd-raleigh-nc-27609-10128076",
+      "https://diamondrealtyburlington.homefront.com/homes/nc/raleigh/property/301-latimer-road-5e484432-0afa-3cfe-8fbb-149b3c105ff1",
+      "https://www.forrent.com/nc/raleigh/301-latimer-rd/nfqd3cm",
+      "https://www.apartmentlist.com/nc/raleigh/301-latimer-road"
+    ]
+  },
+  {
+    "address": "601 E 81st Ter, Kansas City, MO 64131",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.trulia.com/home/601-e-81st-ter-kansas-city-mo-64131-2425500",
+      "https://www.coldwellbanker.com/mo/kansas-city/601-east-81st-terrace/lid-P00800000GvlItZjBpYbcgkmJzV6Hn8EtDmmiXAR"
+    ]
+  },
+  {
+    "address": "12 Maple Ave #1, Somerville, MA 02145",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.homes.com/property/12-maple-ave-somerville-ma-unit-1/f3pcp88yl63s2",
+      "https://estately.com/listings/info/12-maple-avenue-somerville-ma-02145",
+      "https://raveis.com/prop/73349081/12-maple-avenue-somerville-ma-02145",
+      "https://dawnhadley.evrealestate.com/listing-detail/1159681525/12_Maple_Avenue_-1-Somerville-MA",
+      "https://nicolescatalano.evrealestate.com/listing-detail/1159681525/12_Maple_Avenue_-1-Somerville-MA",
+      "https://buyowner.com/homes/12-maple-avenue-ma-02145-73349081"
+    ]
+  },
+  {
+    "address": "727 E 25th St, Houston, TX 77008",
+    "set": "B",
+    "expect": [],
+    "confirmed": [
+      "https://www.homes.com/property/727-e-25th-st-houston-tx/62d130rtt02k2",
+      "https://www.coldwellbankerhomes.com/tx/houston/727-e-25th-st/pid_70312172",
+      "https://homes.houstonproperties.com/tx/heightsgreater-heights/home/727-e-25th-street-houston-77008-83344460",
+      "https://homes.houstonproperties.com/tx/heightsgreater-heights/home/727-e-25th-street-houston-77008-71815208"
+    ]
   }
 ];
 
@@ -405,8 +531,21 @@ export function siteCoverage(namedUrls: string[], foundKeys: string[]): { sitesE
   return { sitesExpected: want.length, sitesFound: want.length - missed.length, sitesMissed: missed };
 }
 
+/** Every search a scan made and what came back, so a run can be replayed offline without search credits. */
+export interface RawSearch {
+  q: SearchQuery;
+  rows: { url: string; title: string; snippet: string; thumbnail?: string }[];
+  error?: string;
+}
+export interface RawHome {
+  address: string;
+  searches: RawSearch[];
+  lookups: { key: string; rows: Candidate[]; error?: string }[];
+}
+
 export interface SelftestRow {
   address: string;
+  set: 'A' | 'B';
   /** Pages in this home's list (original + confirmed). */
   expected: number;
   found: number;
@@ -464,15 +603,86 @@ export interface SelftestResult {
   newExact: number;
   photos: { seen: number; none: number; unknown: number };
   searchMode?: string;
+  /** The first 10 homes only, to compare with runs before set B was added. */
+  setA?: { sitesExpected: number; sitesFound: number; sitesPct: number; namedPct: number };
+  /** Raw searches per home, for offline replay. */
+  raw?: RawHome[];
 }
 
-export async function runSelftest(engine: () => EngineOptions, concurrency = 3): Promise<SelftestResult> {
+/** Wrap a provider and lookups so every search and its results are kept. */
+export function recorder(opts: EngineOptions, address: string): { opts: EngineOptions; raw: RawHome } {
+  const raw: RawHome = { address, searches: [], lookups: [] };
+  const clip = (c: Candidate) => ({ url: c.url, title: (c.title ?? '').slice(0, 200), snippet: (c.snippet ?? '').slice(0, 300), ...(c.thumbnail ? { thumbnail: c.thumbnail } : {}) });
+  const p = opts.provider;
+  const provider: SearchProvider | null = p && {
+    name: p.name,
+    mode: p.mode?.bind(p),
+    async search(q, signal) {
+      try {
+        const rows = await p.search(q, signal);
+        raw.searches.push({ q, rows: rows.map(clip) });
+        return rows;
+      } catch (e) {
+        raw.searches.push({ q, rows: [], error: String((e as Error)?.message ?? e).slice(0, 200) });
+        throw e;
+      }
+    },
+  };
+  const lookups: PortalLookup[] | undefined = opts.lookups?.map((l) => ({
+    key: l.key,
+    async run(line, fetchFn, signal) {
+      try {
+        const rows = await l.run(line, fetchFn, signal);
+        raw.lookups.push({ key: l.key, rows });
+        return rows;
+      } catch (e) {
+        raw.lookups.push({ key: l.key, rows: [], error: String((e as Error)?.message ?? e).slice(0, 200) });
+        throw e;
+      }
+    },
+  }));
+  return { opts: { ...opts, provider, ...(lookups ? { lookups } : {}) }, raw };
+}
+
+/** The same query asked again gets the same saved answer. */
+export function queryKey(q: SearchQuery): string {
+  return JSON.stringify([q.label, q.kind, q.phrases, q.extra ?? '', q.sites ?? [], q.exclude ?? [], q.page ?? 1, q.num ?? 0]);
+}
+
+/** Replay a saved run offline: searches answer from the file (unknown searches get nothing), no credits used. */
+export function replayEngine(raw: RawHome): EngineOptions & { misses: string[] } {
+  const byKey = new Map(raw.searches.map((s) => [queryKey(s.q), s]));
+  const misses: string[] = [];
+  return {
+    misses,
+    provider: {
+      name: 'replay',
+      mode: () => 'full',
+      async search(q) {
+        const hit = byKey.get(queryKey(q));
+        if (!hit) { misses.push(queryKey(q)); return []; }
+        if (hit.error) throw new Error(hit.error);
+        return hit.rows.map((r) => ({ ...r, via: `${q.kind === 'web' ? 'search' : q.kind}:${q.label}` }));
+      },
+    },
+    lookups: raw.lookups.map((l) => ({ key: l.key, async run() { if (l.error) throw new Error(l.error); return l.rows; } })),
+  };
+}
+
+export async function runSelftest(
+  engine: () => EngineOptions,
+  opts: { concurrency?: number; homes?: typeof SELFTEST_HOMES; record?: boolean } = {},
+): Promise<SelftestResult> {
+  const concurrency = opts.concurrency ?? 3;
   const rows: SelftestRow[] = [];
-  const queue = [...SELFTEST_HOMES];
+  const raws: RawHome[] = [];
+  const queue = [...(opts.homes ?? SELFTEST_HOMES)];
   const zpid = (u: string) => u.match(/(\d+)_zpid/)?.[1];
   const worker = async () => {
     for (let h = queue.shift(); h; h = queue.shift()) {
-      const r = await runScan(parseAddress(h.address), engine());
+      const rec = opts.record ? recorder(engine(), h.address) : null;
+      if (rec) raws.push(rec.raw);
+      const r = await runScan(parseAddress(h.address), rec ? rec.opts : engine());
       const got = new Set(r.findings.map((f) => pathKey(f.url)));
       const zpidGot = new Set(r.findings.filter((f) => f.siteKey === 'zillow').map((f) => zpid(f.url)));
       const hit = (u: string) => (zpid(u) ? zpidGot.has(zpid(u)) : got.has(pathKey(u)));
@@ -486,7 +696,7 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
         .map((f) => `${f.confidence} | ${f.foundVia?.[0] ?? ''} | ${f.photos ?? ''} | ${f.url}`)
         .slice(0, 60);
       rows.push({
-        address: h.address, expected: list.length, found: list.length - missed.length, missed,
+        address: h.address, set: h.set ?? 'A', expected: list.length, found: list.length - missed.length, missed,
         origExpected: h.expect.length, origFound: h.expect.filter(hit).length, total: r.findings.length,
         namedExpected: list.filter(isNamedSite).length, namedFound: list.filter((u) => isNamedSite(u) && hit(u)).length,
         namedMissed: missed.filter(isNamedSite),
@@ -501,7 +711,12 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
     }
   };
   await Promise.all(Array.from({ length: concurrency }, worker));
-  rows.sort((a, b) => a.address.localeCompare(b.address));
+  return { ...summarize(rows), ...(opts.record ? { raw: raws.sort((a, b) => a.address.localeCompare(b.address)) } : {}) };
+}
+
+/** Totals for a set of rows. Exported so the page can merge the two halves of a run. */
+export function summarize(rowsIn: SelftestRow[]): SelftestResult {
+  const rows = [...rowsIn].sort((a, b) => a.address.localeCompare(b.address));
   const sum = (k: keyof SelftestRow) => rows.reduce((s, r) => s + (r[k] as number), 0);
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   const expected = sum('expected'), found = sum('found'), origExpected = sum('origExpected'), origFound = sum('origFound');
@@ -512,6 +727,12 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
     namedExpected, namedFound, namedPct: pct(namedFound, namedExpected),
     sitesExpected, sitesFound, sitesPct: pct(sitesFound, sitesExpected),
     exactPages: sum('exact'), newExact: sum('newExact'),
+    setA: (() => {
+      const a = rows.filter((r) => r.set === 'A');
+      const e = a.reduce((s, r) => s + r.sitesExpected, 0), f = a.reduce((s, r) => s + r.sitesFound, 0);
+      const ne = a.reduce((s, r) => s + r.namedExpected, 0), nf = a.reduce((s, r) => s + r.namedFound, 0);
+      return { sitesExpected: e, sitesFound: f, sitesPct: pct(f, e), namedPct: pct(nf, ne) };
+    })(),
     photos: { seen: rows.reduce((s, r) => s + r.photos.seen, 0), none: rows.reduce((s, r) => s + r.photos.none, 0), unknown: rows.reduce((s, r) => s + r.photos.unknown, 0) }, searchMode: rows.map((r) => r.searchMode).filter(Boolean).pop(),
   };
 }

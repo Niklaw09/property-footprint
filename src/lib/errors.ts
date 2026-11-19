@@ -5,7 +5,7 @@ export function errorText(e: unknown, t: Strings): string {
   const code = e instanceof ApiError ? e.code : '';
   switch (code) {
     case 'invalid_address': return t.errInvalid;
-    case 'busy': return t.errBusy;
+    case 'busy': return e instanceof ApiError && e.detail === 'selftest_daily_limit' ? 'Today’s accuracy-check limit is used up. It resets at midnight UTC (7 PM Eastern).' : t.errBusy;
     case 'daily_limit': return t.errDaily;
     case 'scan_failed': return t.errFailed;
     case 'not_configured': return t.errNotConfigured;
