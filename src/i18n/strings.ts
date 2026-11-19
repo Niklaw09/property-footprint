@@ -197,6 +197,9 @@ const en = {
   signInBody: 'We’ll email you a sign-in link. No password needed.',
   emailLabel: 'Email',
   sendLink: 'Email me a sign-in link',
+  signInBodyGoogle: 'Use your Google account, or get a sign-in link by email. No password needed.',
+  googleSignIn: 'Continue with Google',
+  orEmail: 'or use your email',
   linkSent: 'Check your email for the sign-in link. You can close this tab.',
   demoSignIn: 'Demo mode: you’re signed in as a test user.',
 
@@ -208,6 +211,8 @@ const en = {
   footerNote: 'We only link to pages that are already public. Removal depends on each site’s policies and is never guaranteed.',
   privacy: 'We store the address you scan and, if you sign in, your email. We never sell data or show ads.',
   operator: 'HomePrint is a service of High Point Perspective, a real estate media company.',
+  privacyLink: 'Privacy policy',
+  termsLink: 'Terms of service',
 };
 
 export type Strings = typeof en;
@@ -409,6 +414,9 @@ const es: Strings = {
   signInBody: 'Te enviaremos un enlace por correo. No necesitas contraseña.',
   emailLabel: 'Correo electrónico',
   sendLink: 'Enviarme un enlace',
+  signInBodyGoogle: 'Usa tu cuenta de Google o recibe un enlace por correo. No necesitas contraseña.',
+  googleSignIn: 'Continuar con Google',
+  orEmail: 'o usa tu correo',
   linkSent: 'Revisa tu correo para el enlace de inicio de sesión. Puedes cerrar esta pestaña.',
   demoSignIn: 'Modo demo: iniciaste sesión como usuario de prueba.',
 
@@ -420,6 +428,8 @@ const es: Strings = {
   footerNote: 'Solo enlazamos páginas que ya son públicas. La eliminación depende de las políticas de cada sitio y nunca está garantizada.',
   privacy: 'Guardamos la dirección que escaneas y, si inicias sesión, tu correo. Nunca vendemos datos ni mostramos anuncios.',
   operator: 'HomePrint es un servicio de High Point Perspective, una empresa de medios inmobiliarios.',
+  privacyLink: 'Política de privacidad (en inglés)',
+  termsLink: 'Términos del servicio (en inglés)',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, es };

@@ -22,6 +22,7 @@ export default function Footer() {
           <p className="flex gap-2"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sage-600" />{t.footerNote}</p>
           <p className="pl-[22px]">{t.privacy}</p>
           <p className="pl-[22px]">{t.operator}</p>
+          <p className="pl-[22px]"><a className="link" href="/privacy.html">{t.privacyLink}</a> · <a className="link" href="/terms.html">{t.termsLink}</a></p>
         </div>
       </div>
     </footer>
