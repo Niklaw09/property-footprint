@@ -16,6 +16,7 @@ export interface CheckoutInput {
   cancelUrl: string;
   userId: string;
   reportId: string;
+  plan?: 'quick' | 'monitor';
   email?: string;
   locale?: 'en' | 'es';
 }
@@ -30,6 +31,7 @@ export async function createCheckoutSession(i: CheckoutInput, fetchFn: FetchLike
     locale: i.locale ?? 'auto',
     'metadata[user_id]': i.userId,
     'metadata[report_id]': i.reportId,
+    'metadata[plan]': i.plan ?? 'monitor',
     'payment_intent_data[metadata][report_id]': i.reportId,
     'line_items[0][quantity]': 1,
     ...(i.priceId
@@ -57,6 +59,7 @@ export interface PaidSession {
   userId: string;
   reportId: string;
   amountCents: number;
+  plan: 'quick' | 'monitor';
 }
 
 export function parseSession(s: Record<string, any>): PaidSession {
@@ -66,6 +69,7 @@ export function parseSession(s: Record<string, any>): PaidSession {
     userId: s.metadata?.user_id ?? s.client_reference_id ?? '',
     reportId: s.metadata?.report_id ?? '',
     amountCents: Number(s.amount_total ?? 0),
+    plan: s.metadata?.plan === 'quick' ? 'quick' : 'monitor',
   };
 }
 

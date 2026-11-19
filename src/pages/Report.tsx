@@ -64,7 +64,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   if (error) return <div className="mx-auto max-w-3xl px-5 py-16 text-center text-navy-600">{error}</div>;
   if (!view) return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-sage-600" /></div>;
 
-  const unlock = async () => {
+  const unlock = async (plan: 'quick' | 'monitor' = 'monitor') => {
     if (!ctx.user) { go({ name: 'signin', next: `#/r/${id}` }); return; }
     setBuying(true);
     setNotice(null);
@@ -76,7 +76,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         setBuying(false);
         return;
       }
-      const url = await ctx.api.checkout(view.id, lang);
+      const url = await ctx.api.checkout(view.id, lang, plan);
       if (url.startsWith('#')) { window.location.hash = url; await load(); setBuying(false); } else window.location.href = url;
     } catch (e) {
       setNotice(errorText(e, t));
@@ -148,10 +148,22 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       </div>
 
       {!view.unlocked && view.counts.total > 0 && (
-        <PriceCard view={view} signedIn={!!ctx.user} buying={buying} onUnlock={unlock} notice={notice} />
+        <PriceCard view={view} signedIn={!!ctx.user} buying={buying} onUnlock={(p) => unlock(p)} notice={notice} />
       )}
       {view.unlocked && view.paidUntil && (
-        <p className="mt-3 text-xs text-navy-500">{t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
+        <p className="mt-3 text-xs text-navy-500">{view.plan === 'quick' ? t.quickUntil : t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
+      )}
+      {view.unlocked && view.plan === 'quick' && view.upgradeCents != null && (
+        <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <div>
+            <h2 className="font-semibold text-navy-900">{t.upgradeTitle}</h2>
+            <p className="mt-1 text-sm text-navy-600">{t.upgradeBody.replace('{price}', money(view.upgradeCents))}</p>
+            {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+          </div>
+          <button onClick={() => unlock('monitor')} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
+            {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{t.upgradeCta.replace('{price}', money(view.upgradeCents))}
+          </button>
+        </div>
       )}
       {view.unlocked && view.review && <ReviewCard view={view} ctx={ctx} started={view.findings.some((f) => !f.locked && f.task && f.task.status !== 'todo')} />}
 
@@ -178,7 +190,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
           )}
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {items.slice(0, cap).map((f) => f.locked
-              ? <LockedCard key={f.id} f={f} onUnlock={unlock} />
+              ? <LockedCard key={f.id} f={f} onUnlock={() => unlock()} />
               : <FindingCard key={f.id} f={f} member={view.unlocked} onRemove={() => setDrawer({ pb: playbookFor(f.coveredBy ?? f.playbook), finding: f })} onStatus={(s) => setTask(f, s)} />)}
           </div>
           {cap < items.length && (
@@ -231,8 +243,8 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         </div>
       </section>
 
-      {/* Monitoring */}
-      {view.unlocked && (
+      {/* Monitoring (12-month plan) */}
+      {view.unlocked && view.plan !== 'quick' && (
         <section className="mt-10 grid gap-3 md:grid-cols-2">
           <div className="card">
             <h2 className="flex items-center gap-2 font-semibold text-navy-900"><RefreshCw className="h-4 w-4 text-sage-600" />{t.monitorTitle}</h2>
@@ -339,32 +351,70 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
 
 const promoOpen = (view: ReportView) => !!view.promo && view.promo.left > 0 && !view.promo.usedByYou;
 
-function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: () => void; notice: string | null }) {
+const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
+
+function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: (plan?: 'quick' | 'monitor') => void; notice: string | null }) {
   const { t, lang } = useLang();
-  const dollars = `$${(view.price.cents / 100).toFixed(view.price.cents % 100 ? 2 : 0)}`;
+  const dollars = money(view.prices.monitor);
+  const quick = money(view.prices.quick);
   const free = promoOpen(view);
   const n = (x: number) => x.toLocaleString(lang === 'es' ? 'es-US' : 'en-US');
-  return (
-    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
-      <div>
-        {free && (
+  if (free) {
+    return (
+      <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+        <div>
           <p className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-sage-600 px-2.5 py-0.5 text-xs font-semibold text-white">
             {t.promoBadge.replace('{left}', n(view.promo!.left)).replace('{total}', n(view.promo!.total))}
           </p>
-        )}
-        <h2 className="font-serif text-lg font-semibold text-navy-900">
-          {free ? <>{t.promoTitle} <span className="font-sans text-base font-normal text-navy-400 line-through">{dollars}</span></> : t.priceTitle.replace('{price}', dollars)}
-        </h2>
-        <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
-          {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
-        </ul>
-        <p className="mt-2 text-xs text-navy-500">{free ? t.promoNote.replace('{total}', n(view.promo!.total)) : t.priceNote}</p>
-        {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+          <h2 className="font-serif text-lg font-semibold text-navy-900">
+            {t.promoTitle} <span className="font-sans text-base font-normal text-navy-400 line-through">{dollars}</span>
+          </h2>
+          <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
+            {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <p className="mt-2 text-xs text-navy-500">{t.promoNote.replace('{total}', n(view.promo!.total))}</p>
+          {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+        </div>
+        <button onClick={() => onUnlock()} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
+          {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
+          {signedIn ? t.promoCta : t.promoSignIn}
+        </button>
       </div>
-      <button onClick={onUnlock} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
-        {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
-        {free ? (signedIn ? t.promoCta : t.promoSignIn) : signedIn ? t.buyCta.replace('{price}', dollars) : t.signInToBuy}
-      </button>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5">
+      <h2 className="font-serif text-lg font-semibold text-navy-900">{t.plansTitle}</h2>
+      <p className="mt-1 text-sm text-navy-600">{t.plansIntro}</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col rounded-lg border border-navy-100 bg-white p-4">
+          <p className="font-semibold text-navy-900">{t.quickName}</p>
+          <p className="mt-1 text-2xl font-semibold text-navy-900">{quick}</p>
+          <ul className="mt-3 grid gap-1 text-sm text-navy-700">
+            {t.quickBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <p className="mt-3 text-xs text-navy-500">{t.quickNote.replace('{price}', quick)}</p>
+          <button onClick={() => onUnlock('quick')} disabled={buying} className="btn-secondary mt-auto w-full py-2">
+            {signedIn ? t.quickCta : t.signInToBuy}
+          </button>
+        </div>
+        <div className="flex flex-col rounded-lg border-2 border-sage-500 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-navy-900">{t.planName}</p>
+            <span className="rounded-full bg-sage-600 px-2 py-0.5 text-[11px] font-medium text-white">{t.planBadge}</span>
+          </div>
+          <p className="mt-1 text-2xl font-semibold text-navy-900">{dollars}</p>
+          <ul className="mt-3 grid gap-1 text-sm text-navy-700">
+            {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <button onClick={() => onUnlock('monitor')} disabled={buying} className="btn-primary mt-4 w-full">
+            {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
+            {signedIn ? t.planCta.replace('{price}', dollars) : t.signInToBuy}
+          </button>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-navy-500">{t.plansNote}</p>
+      {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
     </div>
   );
 }

@@ -65,10 +65,11 @@ export function demoApi(): Api {
     rescan: (id) => wrap(() => svc.rescan({ userId: uid()!, reportId: id })),
     mine: () => wrap(() => svc.myReports(uid()!)),
     async selftest() { throw new ApiError('not_configured'); },
-    async checkout(id) {
-      // Demo: pretend the $19.99 payment succeeded.
+    async checkout(id, _lang, plan = 'monitor') {
+      // Demo: pretend the payment succeeded.
       await delay(600);
-      await wrap(() => svc.grantPurchase({ userId: uid()!, reportId: id, sessionId: `demo_${id}`, amountCents: 1999 }));
+      const q = await wrap(() => svc.quote({ userId: uid()!, reportId: id, plan }));
+      if (q) await wrap(() => svc.grantPurchase({ userId: uid()!, reportId: id, sessionId: `demo_${id}_${q.plan}`, amountCents: q.cents, plan: q.plan }));
       return `#/r/${id}`;
     },
     async confirm() { return { ok: true }; },

@@ -59,6 +59,8 @@ export interface MembershipRow {
   owner_name: string;
 }
 
+export type Plan = 'quick' | 'monitor';
+
 export interface EntitlementRow {
   user_id: string;
   report_id: string;
@@ -66,6 +68,8 @@ export interface EntitlementRow {
   amount_cents: number;
   paid_at: string;
   paid_until: string;
+  /** quick: one report, 30 days, no re-checks. monitor (default): 12 months with re-checks. */
+  plan?: Plan;
   lang?: string;
   review_email_sent_at?: string | null;
 }
@@ -121,6 +125,8 @@ export interface ServiceConfig {
   ipSalt?: string;
   verifyGone?: (url: string) => Promise<'gone' | 'live' | 'unknown'>;
   priceCents?: number;
+  /** Quick scan: the full report and guides for one home, no re-checks. */
+  quickPriceCents?: number;
   /** Launch offer: this many homes can be unlocked free (one per account). 0 or unset turns it off. */
   promoLimit?: number;
   /** Public Google review link shown after an on-site review and in the follow-up email. */
@@ -186,6 +192,12 @@ export interface ReportView {
   unlocked: boolean; // paid and within the 12-month window
   paidUntil: string | null;
   price: { cents: number; currency: string };
+  /** Both options: the $4.99 Quick scan and the $19.99 plan. */
+  prices: { quick: number; monitor: number };
+  /** Unlocked members: which plan. */
+  plan: Plan | null;
+  /** Quick scan owners: what the 12-month plan costs them now (the difference). */
+  upgradeCents: number | null;
   rescansLeft: number;
   counts: { total: number; exact: number; likely: number; gone: number; byMedia: Partial<Record<MediaType, number>>; byCategory: Partial<Record<SiteCategory, number>> };
   findings: ViewFinding[];
@@ -224,6 +236,7 @@ const defaultToken = (): string => {
 const DAY_MS = 24 * 3600 * 1000;
 const RECHECK_MS = 60 * DAY_MS; // automatic re-check every 60 days
 const YEAR_MS = 365 * DAY_MS;
+const QUICK_MS = 30 * 24 * 3600 * 1000; // Quick scan: the report stays open 30 days to work through the requests
 const PROMO_BUCKET = 'promo:launch';
 const PROMO_TTL = 10 * 365 * 24 * 3600; // effectively permanent
 const REVIEW_EMAIL_AFTER_MS = 7 * DAY_MS;
@@ -238,6 +251,9 @@ export function createService(cfg: ServiceConfig) {
     perDay: 300, reuseHours: 24, manualRescanHours: 12, manualRescansPer30Days: 2, ...cfg.limits,
   };
   const price = { cents: cfg.priceCents ?? 1999, currency: 'usd' };
+  const prices = { quick: cfg.quickPriceCents ?? 499, monitor: price.cents };
+  const planOf = (e: EntitlementRow | null): Plan | null => (e ? e.plan ?? 'monitor' : null);
+  const upgradeFor = (e: EntitlementRow | null) => (planOf(e) === 'quick' ? Math.max(0, prices.monitor - (e!.amount_cents || prices.quick)) : null);
   const promoLimit = Math.max(0, cfg.promoLimit ?? 0);
   async function promoState(userId: string | null): Promise<ReportView['promo']> {
     if (!promoLimit) return null;
@@ -251,9 +267,11 @@ export function createService(cfg: ServiceConfig) {
     const e = await store.getEntitlement(userId, reportId);
     return isActive(e) ? e : null;
   }
-  async function requireUnlocked(userId: string, reportId: string): Promise<void> {
+  async function requireUnlocked(userId: string, reportId: string): Promise<EntitlementRow> {
     if (!(await store.getMembership(userId, reportId))) throw new ServiceError('forbidden');
-    if (!(await unlockedFor(userId, reportId))) throw new ServiceError('payment_required');
+    const e = await unlockedFor(userId, reportId);
+    if (!e) throw new ServiceError('payment_required');
+    return e;
   }
   async function rescansLeft(reportId: string): Promise<number> {
     const since = new Date(now().getTime() - 30 * DAY_MS).toISOString();
@@ -355,8 +373,9 @@ export function createService(cfg: ServiceConfig) {
     const runs = unlocked ? await store.listRuns(report.id, 24) : [];
     return {
       id: report.id, display: report.display, address: report.address, status: report.last_status,
-      scannedAt: report.last_scanned_at, nextScanAt: unlocked ? report.next_scan_at : null, member, unlocked,
-      paidUntil: ent?.paid_until ?? null, price, rescansLeft: unlocked ? await rescansLeft(report.id) : 0,
+      scannedAt: report.last_scanned_at, nextScanAt: planOf(ent) === 'monitor' ? report.next_scan_at : null, member, unlocked,
+      paidUntil: ent?.paid_until ?? null, price, prices, plan: planOf(ent), upgradeCents: upgradeFor(ent),
+      rescansLeft: planOf(ent) === 'monitor' ? await rescansLeft(report.id) : 0,
       counts: {
         total: live.length, exact: live.filter((r) => r.data.confidence === 'exact').length,
         likely: live.filter((r) => r.data.confidence === 'likely').length,
@@ -443,7 +462,8 @@ export function createService(cfg: ServiceConfig) {
     },
 
     async rescan(input: { userId: string; reportId: string }): Promise<ReportView> {
-      await requireUnlocked(input.userId, input.reportId);
+      const ent = await requireUnlocked(input.userId, input.reportId);
+      if (planOf(ent) !== 'monitor') throw new ServiceError('payment_required', 'upgrade'); // Quick scan: no extra scans
       const report = await store.getReport(input.reportId);
       if (!report) throw new ServiceError('not_found');
       if ((await rescansLeft(report.id)) <= 0) {
@@ -466,11 +486,12 @@ export function createService(cfg: ServiceConfig) {
         if (!r) continue;
         const rows = await store.listFindings(r.id);
         const tasks = await store.listTasks(userId, r.id);
+        const ent = await unlockedFor(userId, r.id);
         const removed = new Set([...tasks.filter((t) => t.status === 'removed').map((t) => t.fid), ...rows.filter((x) => x.gone_verified_at).map((x) => x.fid)]);
         out.push({
           id: r.id, display: r.display, scannedAt: r.last_scanned_at, monitor: m.monitor,
-          nextScanAt: (await unlockedFor(userId, r.id)) ? r.next_scan_at : null,
-          paidUntil: (await unlockedFor(userId, r.id))?.paid_until ?? null,
+          nextScanAt: planOf(ent) === 'monitor' ? r.next_scan_at : null,
+          paidUntil: ent?.paid_until ?? null,
           total: rows.length, removed: removed.size,
           inProgress: tasks.filter((t) => (t.status === 'sent' || t.status === 'waiting') && !removed.has(t.fid)).length,
         });
@@ -479,24 +500,41 @@ export function createService(cfg: ServiceConfig) {
     },
 
     /** Record a completed payment (from the Stripe webhook or the return-page confirmation). Idempotent. */
-    async grantPurchase(input: { userId: string; reportId: string; sessionId: string; amountCents: number; lang?: string }): Promise<boolean> {
+    async grantPurchase(input: { userId: string; reportId: string; sessionId: string; amountCents: number; plan?: Plan; lang?: string }): Promise<boolean> {
       const report = await store.getReport(input.reportId);
       if (!report) throw new ServiceError('not_found');
+      const plan: Plan = input.plan === 'quick' ? 'quick' : 'monitor';
       await store.upsertMembership({ user_id: input.userId, report_id: input.reportId, monitor: true });
       const prev = await store.getEntitlement(input.userId, input.reportId);
-      const base = prev && isActive(prev) ? new Date(prev.paid_until).getTime() : now().getTime();
+      // A second 12-month plan extends the first; an upgrade from a Quick scan starts 12 months from today.
+      const base = plan === 'monitor' && prev && isActive(prev) && planOf(prev) === 'monitor' ? new Date(prev.paid_until).getTime() : now().getTime();
       const granted = await store.grantEntitlement({
         user_id: input.userId, report_id: input.reportId, session_id: input.sessionId, amount_cents: input.amountCents,
-        paid_at: now().toISOString(), paid_until: new Date(base + YEAR_MS).toISOString(), lang: input.lang === 'es' ? 'es' : 'en',
+        paid_at: now().toISOString(), paid_until: new Date(base + (plan === 'quick' ? QUICK_MS : YEAR_MS)).toISOString(),
+        plan, lang: input.lang === 'es' ? 'es' : 'en',
       });
-      // Start the 60-day re-check clock from the purchase.
-      if (granted && (!report.next_scan_at || new Date(report.next_scan_at).getTime() > now().getTime() + RECHECK_MS)) {
+      // Start the 60-day re-check clock from the purchase (12-month plan only).
+      if (granted && plan === 'monitor' && (!report.next_scan_at || new Date(report.next_scan_at).getTime() > now().getTime() + RECHECK_MS)) {
         await store.updateReport(report.id, { next_scan_at: new Date(now().getTime() + RECHECK_MS).toISOString() });
       }
       return granted;
     },
 
     price,
+    prices,
+
+    /**
+     * What a checkout for this home should charge, or null when there's nothing to buy (already on the 12-month
+     * plan, or asking for a Quick scan they already have). A Quick scan owner pays the difference for the plan.
+     */
+    async quote(input: { userId: string; reportId: string; plan: Plan }): Promise<{ cents: number; plan: Plan; upgrade: boolean } | null> {
+      const ent = await unlockedFor(input.userId, input.reportId);
+      const have = planOf(ent);
+      if (have === 'monitor') return null;
+      if (input.plan === 'quick') return have === 'quick' ? null : { cents: prices.quick, plan: 'quick', upgrade: false };
+      if (have === 'quick') return { cents: upgradeFor(ent)!, plan: 'monitor', upgrade: true };
+      return { cents: prices.monitor, plan: 'monitor', upgrade: false };
+    },
 
     /** Launch offer counter for the landing page (null when there's no offer). */
     promoStatus: () => promoState(null),

@@ -101,7 +101,8 @@ export function supabaseStore(db: SupabaseClient): Store {
       check(await db.from('entitlements').update({ review_email_sent_at: atIso }).eq('session_id', sessionId));
     },
     async dueMonitoredReports(nowIso, limit) {
-      const paid = (check(await db.from('entitlements').select('user_id,report_id').gt('paid_until', nowIso)) as any[]);
+      // Re-checks are part of the 12-month plan only; a Quick scan is a one-off.
+      const paid = (check(await db.from('entitlements').select('user_id,report_id').gt('paid_until', nowIso).neq('plan', 'quick')) as any[]);
       const monitored = (check(await db.from('memberships').select('user_id,report_id').eq('monitor', true)) as any[]);
       const paidSet = new Set(paid.map((e) => `${e.user_id}:${e.report_id}`));
       const ids = monitored.filter((m) => paidSet.has(`${m.user_id}:${m.report_id}`)).map((m) => m.report_id);
