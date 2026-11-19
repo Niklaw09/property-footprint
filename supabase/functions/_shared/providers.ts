@@ -17,6 +17,8 @@ export interface SearchQuery {
   extra?: string; // unquoted terms (city, state, zip)
   sites?: string[]; // restrict to these domains
   num?: number;
+  /** Extra plain-text search, only worth running when the full operator searches aren't allowed. */
+  fallbackOnly?: boolean;
 }
 
 export interface SearchProvider {
@@ -56,9 +58,10 @@ export function renderGoogleQuery(q: SearchQuery): string {
 const PLAIN_HINTS: Record<string, string> = {
   portals: 'home for sale', brokerages: 'realtor listing', tours: 'virtual tour', video_social: 'video',
   rentals: 'for rent', media_words: 'photos', zip: 'listing',
+  plain_mls: 'MLS', plain_sold: 'sold', plain_idx: 'property details beds baths', plain_agent: 'realty',
 };
 // Use the other spelling of the street ("Dr" vs "Drive") for some, so the simplified searches don't all repeat.
-const ALT_PHRASE = new Set(['zip', 'brokerages', 'tours']);
+const ALT_PHRASE = new Set(['zip', 'brokerages', 'tours', 'plain_sold', 'plain_agent']);
 
 export function simplifyQuery(q: SearchQuery, level: number): string {
   if (level <= 0) return renderGoogleQuery(q);
@@ -70,7 +73,7 @@ export function simplifyQuery(q: SearchQuery, level: number): string {
 
 // Serper allows 5 requests per second per account. Space calls out across every scan running in this instance.
 let nextSlot = 0;
-const SERPER_GAP_MS = 250;
+const SERPER_GAP_MS = 220; // ~4.5 per second, under the limit of 5
 async function serperSlot(): Promise<void> {
   const now = Date.now();
   const at = Math.max(now, nextSlot);
@@ -79,12 +82,17 @@ async function serperSlot(): Promise<void> {
 }
 
 const RESTRICTED = /not allowed for free accounts|query pattern not allowed/i;
+// Remembered across scans in this server instance, so later scans skip searches the account can't run.
+// level: 0 = full operators work, 1 = quoted phrase only, 2 = plain words. fullOk: a full search has succeeded.
+const accountState = new Map<string, { level: number; fullOk: boolean }>();
+export function _resetSerperStateForTests(): void { accountState.clear(); nextSlot = 0; }
 
 /** Serper.dev: Google results. https://serper.dev */
 export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): SearchProvider {
   // Shared across queries in this scan: once a pattern is refused, use the simpler form from then on,
   // and don't pay twice for queries that collapse to the same text.
-  let level = 0;
+  const state = accountState.get(apiKey) ?? { level: 0, fullOk: false };
+  accountState.set(apiKey, state);
   const seen = new Map<string, Promise<any>>();
   async function call(endpoint: string, text: string, num: number, signal?: AbortSignal, attempt = 0): Promise<any> {
     let res: Response;
@@ -115,8 +123,10 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
     name: 'serper',
     async search(q, signal) {
       const endpoint = q.kind === 'images' ? 'images' : q.kind === 'videos' ? 'videos' : 'search';
+      if (q.fallbackOnly && state.fullOk && state.level === 0) return []; // full searches already cover it
       let data: any;
       for (;;) {
+        const level = q.fallbackOnly ? Math.max(1, state.level) : state.level;
         const text = simplifyQuery(q, level);
         const key = `${endpoint}|${text}`;
         let p = seen.get(key);
@@ -126,10 +136,12 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
         }
         try {
           data = await p;
+          if (level === 0 && (q.sites?.length || q.phrases.length > 1)) state.fullOk = true;
           break;
         } catch (e) {
           if (e instanceof ProviderError && RESTRICTED.test(e.message) && level < 2) {
-            level = Math.max(level, simplifyQuery(q, level) === text ? level + 1 : level);
+            if (state.level === level) state.level = level + 1;
+            state.fullOk = false;
             continue;
           }
           throw e;
@@ -177,6 +189,7 @@ export function braveProvider(apiKey: string, fetchFn: FetchLike = fetch): Searc
   return {
     name: 'brave',
     async search(q, signal) {
+      if (q.fallbackOnly) return [];
       const base = renderGoogleQuery({ ...q, sites: undefined });
       if (!q.sites?.length) return one(base, q.kind, q.label, signal);
       const out: Candidate[] = [];

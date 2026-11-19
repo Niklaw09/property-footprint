@@ -18,7 +18,7 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="font-serif text-3xl font-semibold text-navy-900">Accuracy check</h1>
-      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their known listing pages the live engine finds. Uses about 100 search credits; limited to 3 runs a day.</p>
+      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their known listing pages the live engine finds. Uses about 100 search credits; limited to 10 runs a day.</p>
       <button onClick={run} disabled={state === 'running'} className="btn-primary mt-6">
         {state === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}{state === 'running' ? 'Running (about a minute)…' : 'Run accuracy check'}
       </button>

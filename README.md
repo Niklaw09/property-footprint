@@ -46,7 +46,7 @@ Import this repository with **Import from GitHub**. Bolt's Supabase integration 
 
 ### Accuracy check on the live server
 
-Open `https://<your-site>/#/selftest` and press **Run accuracy check**. It scans the 10 test homes from the server (so it also shows whether Zillow's and Redfin's lookups work from Supabase), using about 100 search credits. It is limited to 3 runs per day.
+Open `https://<your-site>/#/selftest` and press **Run accuracy check**. It scans the 10 test homes from the server (so it also shows whether Zillow's and Redfin's lookups work from Supabase), using about 100 search credits. It is limited to 10 runs per day.
 
 ### Sign-in emails
 
