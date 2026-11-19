@@ -466,7 +466,7 @@ export function httpVerifier(fetchFn: typeof fetch = fetch) {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 8000);
     try {
-      const res = await fetchFn(url, { method: 'GET', redirect: 'manual', signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0 PropertyFootprint-Verifier' } });
+      const res = await fetchFn(url, { method: 'GET', redirect: 'manual', signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0 HomePrint-Verifier' } });
       if (res.status === 404 || res.status === 410) return 'gone';
       if (res.status >= 200 && res.status < 300) return 'live';
       return 'unknown'; // redirects, bot walls (403/429) and server errors prove nothing

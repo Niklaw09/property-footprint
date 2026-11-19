@@ -1,6 +1,8 @@
-# My Property Footprint
+# HomePrint
 
 Find every website still showing a home's listing photos, 3D tours, videos and floor plans, and get step-by-step help removing each one.
+
+Live at [homeprint.online](https://homeprint.online).
 
 - **Finding engine**: asks Zillow's and Redfin's own address lookup for the exact property page, then runs ~10 targeted Google searches (via [Serper](https://serper.dev)) across 60+ portals, brokerage/IDX sites, tour hosts, photographer property websites, video and rental sites, plus image and video search.
 - **Strict address matching**: every result must match house number + street (+ suffix and directionals) and city or ZIP. Other units in the building, neighbors' pages, maps, people-search and government sites are filtered out. URLs only ever come from a portal or search response; nothing is generated.
