@@ -1,0 +1,84 @@
+// Does a found page still show the home's photos?
+//
+// Two signals, neither costs search credits:
+// 1. Google already showed us an image from the page (image-search results, or a result thumbnail).
+// 2. For sites that allow it, fetch the page and look for listing photos: a real og:image, or several
+//    photo-sized images from listing-photo hosts.
+// The big portals block automated visits, so they are left "unknown" unless Google showed an image.
+import type { FetchLike } from './providers.ts';
+
+export type PhotoStatus = 'seen' | 'none' | 'unknown';
+
+// Sites that answer automated requests with a bot wall; fetching them only wastes time.
+const NO_FETCH = [
+  'zillow.com', 'trulia.com', 'hotpads.com', 'redfin.com', 'realtor.com', 'homes.com', 'movoto.com', 'compass.com',
+  'facebook.com', 'instagram.com', 'youtube.com', 'youtu.be', 'tiktok.com', 'pinterest.com', 'apartments.com',
+  'apartmentfinder.com', 'zumper.com', 'rent.com', 'har.com', 'coldwellbankerhomes.com', 'century21.com',
+];
+
+// Placeholder images that mean "no photos": logos, "coming soon", default share images.
+const PLACEHOLDER = /logo|default|placeholder|no[-_]?(photo|image)|coming[-_]?soon|blank|share[-_]?image|og[-_]?image|favicon|sprite|icon/i;
+// Hosts and paths that serve MLS listing photos.
+const LISTING_PHOTO = /(photos?|images?|media|listing|mls|idx|rets|property|cdn|cloudfront|amazonaws|rdcpix|zillowstatic|cdn-redfin|ssl\.cdn|listingphotos|mediaserver|bstatic|resize)/i;
+
+export function canFetch(domain: string): boolean {
+  return !NO_FETCH.some((d) => domain === d || domain.endsWith('.' + d));
+}
+
+/** Read up to `limit` characters of a page body. */
+async function readSome(res: Response, limit: number): Promise<string> {
+  if (!res.body) return (await res.text()).slice(0, limit);
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let out = '';
+  while (out.length < limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    out += dec.decode(value, { stream: true });
+  }
+  reader.cancel().catch(() => {});
+  return out.slice(0, limit);
+}
+
+/** Decide from a page's HTML whether it shows listing photos. Exported for tests. */
+export function htmlShowsPhotos(html: string): boolean {
+  const og = [...html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/gi)]
+    .map((m) => m[0].match(/content=["']([^"']+)["']/i)?.[1] ?? '')
+    .filter(Boolean);
+  if (og.some((u) => !PLACEHOLDER.test(u) && LISTING_PHOTO.test(u))) return true;
+  const imgs = new Set(
+    [...html.matchAll(/<(?:img|source)[^>]+(?:data-)?(?:src|srcset)=["']([^"'\s]+)/gi)]
+      .map((m) => m[1])
+      .filter((u) => /\.(jpe?g|webp)(\?|$)/i.test(u) || /\/photos?\//i.test(u))
+      .filter((u) => !PLACEHOLDER.test(u) && LISTING_PHOTO.test(u)),
+  );
+  return imgs.size >= 3;
+}
+
+export async function checkPhotos(url: string, fetchFn: FetchLike, timeoutMs = 6000): Promise<PhotoStatus> {
+  // Only public web pages: https, a real host name, no IP addresses or local names.
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' || !/\.[a-z]{2,}$/i.test(u.hostname) || /^[\d.]+$|^\[|localhost|\.local$|\.internal$/i.test(u.hostname)) return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetchFn(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HomePrint photo check)', Accept: 'text/html' },
+      signal: ctl.signal,
+      redirect: 'follow',
+    });
+    if (!res.ok || !/html/i.test(res.headers.get('content-type') ?? 'text/html')) return 'unknown';
+    const html = await readSome(res, 400_000);
+    // A page that only says "captcha"/"access denied" proves nothing.
+    if (html.length < 2000 || /captcha|access denied|are you a robot|cf-chl/i.test(html.slice(0, 5000))) return 'unknown';
+    return htmlShowsPhotos(html) ? 'seen' : 'none';
+  } catch {
+    return 'unknown';
+  } finally {
+    clearTimeout(t);
+  }
+}

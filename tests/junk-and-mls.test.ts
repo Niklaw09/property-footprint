@@ -85,24 +85,31 @@ describe('MLS number search', () => {
     expect(listingIds(evaluate(a, first))).toEqual(['3777682']);
   });
 
-  it('runs a second search for it and keeps what matches', async () => {
+  it('runs fill-in searches only for the national sites the first round missed', async () => {
     const seen: SearchQuery[] = [];
     const provider = {
       name: 'fake',
       async search(q: SearchQuery) {
         seen.push(q);
-        if (q.label === 'general') return first;
-        if (q.label === 'mls_id') return [c('https://ashbyre.realgeeks.com/property/3777682/', '14425 American Kestrel Dr, Austin, TX 78738 | MLS# 3777682', '', 'search:mls_id')];
+        if (q.label === 'general') return [...first, c('https://www.realtor.com/realestateandhomes-detail/14425-American-Kestrel-Dr_Austin_TX_78738_M87848-30096', '14425 American Kestrel Dr, Austin, TX 78738')];
+        if (q.label === 'fill' && q.sites?.includes('homes.com')) return [c('https://www.homes.com/property/14425-american-kestrel-dr-austin-tx/k95kj5zh9w15e/', '14425 American Kestrel Dr, Austin, TX 78738', '', 'search:fill')];
         return [];
       },
     };
     const r = await runScan(a, { provider, lookups: [] });
-    expect(seen.filter((q) => q.label === 'mls_id').map((q) => q.phrases[0])).toEqual(['3777682']);
-    expect(r.findings.map((f) => f.domain)).toContain('ashbyre.realgeeks.com');
+    const fills = seen.filter((q) => q.label === 'fill');
+    expect(fills.length).toBeGreaterThan(0);
+    expect(fills.length).toBeLessThanOrEqual(4);
+    const asked = fills.flatMap((q) => q.sites ?? []);
+    expect(asked).not.toContain('realtor.com'); // already found
+    expect(asked).not.toContain('trulia.com'); // already found
+    expect(asked).toContain('homes.com');
+    expect(asked).toContain('har.com'); // Texas home
+    expect(r.findings.map((f) => f.domain)).toContain('homes.com');
   });
 
-  it('renders the long-tail search without the big portals', () => {
-    expect(renderGoogleQuery({ label: 'longtail', kind: 'web', phrases: ['1 Main St'], extra: 'Austin TX', exclude: ['zillow.com', 'redfin.com'] }))
+  it('renders an exclusion search', () => {
+    expect(renderGoogleQuery({ label: 'x', kind: 'web', phrases: ['1 Main St'], extra: 'Austin TX', exclude: ['zillow.com', 'redfin.com'] }))
       .toBe('"1 Main St" Austin TX -site:zillow.com -site:redfin.com');
   });
 });

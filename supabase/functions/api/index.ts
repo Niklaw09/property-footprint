@@ -29,7 +29,7 @@ function provider(): SearchProvider | null {
 
 const service = createService({
   store: supabaseStore(db),
-  engine: () => ({ provider: provider() }),
+  engine: () => ({ provider: provider(), checkPhotos: true }),
   verifyGone: httpVerifier(),
   limits: { perDay: Number(env('SCAN_DAILY_LIMIT')) || 300 },
   ipSalt: env('IP_HASH_SALT') || env('CRON_SECRET'),
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     try {
       const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
       if ((n as number) > 10) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
-      return json(await runSelftest(() => ({ provider: provider() })));
+      return json(await runSelftest(() => ({ provider: provider(), checkPhotos: true })));
     } catch (e) {
       console.error('selftest', e);
       return json({ error: 'server_error' }, 500);

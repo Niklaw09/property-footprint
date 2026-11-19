@@ -84,8 +84,10 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
     }
   };
   // Named sites first; within a group, exact matches before possible ones (the server already sorts by confidence).
+  // Pages with no photos seen go last: there's less to remove there.
   const named = (f: ViewFinding) => (f.locked ? 1 : f.siteKey.startsWith('web:') ? 1 : 0);
-  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => named(a) - named(b)) })).filter((g) => g.items.length);
+  const noPhotos = (f: ViewFinding) => (!f.locked && f.photos === 'none' ? 1 : 0);
+  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => noPhotos(a) - noPhotos(b) || named(a) - named(b)) })).filter((g) => g.items.length);
 
   const setTask = async (f: OpenFinding, status: TaskStatus, note?: string) => {
     await ctx.api.task(view.id, f.id, status, note ?? f.task?.note ?? '');
@@ -301,6 +303,8 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
             {f.confidence === 'exact'
               ? <span className="rounded-full bg-sage-100 px-2 py-0.5 text-[11px] font-medium text-sage-800">{t.exact}</span>
               : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">{t.likely}</span>}
+            {f.photos === 'seen' && <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-medium text-navy-700">{t.photosSeen}</span>}
+            {f.photos === 'none' && <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-medium text-navy-400">{t.photosNone}</span>}
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
@@ -312,6 +316,7 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
       </div>
       <Evidence f={f} />
       {f.confidence === 'likely' && <p className="mt-1 flex items-start gap-1 text-xs text-amber-700"><AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />{t.likelyHelp}</p>}
+      {f.photos === 'none' && <p className="mt-1 text-xs text-navy-400">{t.photosNoneHelp}</p>}
       {f.coveredBy && <p className="mt-1 text-xs text-sage-700">{t.coveredBy}</p>}
       {!f.stillFound && <p className="mt-1 text-xs font-medium text-sage-700">{f.goneVerifiedAt ? t.goneVerified : t.gone}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-navy-50 pt-3">
