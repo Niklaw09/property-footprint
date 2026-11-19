@@ -1,7 +1,7 @@
 export type Lang = 'en' | 'es';
 
 const en = {
-  brand: 'My Property Footprint',
+  brand: 'HomePrint',
   navGuides: 'Removal guides',
   navMyHomes: 'My homes',
   navSignIn: 'Sign in',
@@ -170,7 +170,7 @@ const en = {
 export type Strings = typeof en;
 
 const es: Strings = {
-  brand: 'My Property Footprint',
+  brand: 'HomePrint',
   navGuides: 'Guías de eliminación',
   navMyHomes: 'Mis casas',
   navSignIn: 'Iniciar sesión',

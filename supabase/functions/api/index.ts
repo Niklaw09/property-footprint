@@ -1,4 +1,4 @@
-// Property Footprint API (Supabase Edge Function, Deno).
+// HomePrint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
 //
 // Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, optional SCAN_DAILY_LIMIT, IP_HASH_SALT.
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
           secretKey: env('STRIPE_SECRET_KEY'),
           priceId: env('STRIPE_PRICE_ID') || undefined,
           amountCents: service.price.cents,
-          productName: `Property Footprint: ${view.display} (12 months)`,
+          productName: `HomePrint: ${view.display} (12 months)`,
           successUrl: `${base}/?paid={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(`#/r/${reportId}`)}`,
           cancelUrl: back,
           userId: uid,
