@@ -1,6 +1,6 @@
 // HomePrint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
-//
+
 // Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, QUICK_PRICE_CENTS (default 499), optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM, ADMIN_EMAILS (who may run the self-test).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
