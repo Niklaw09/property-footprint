@@ -25,7 +25,7 @@ export default function Header({ ctx }: { ctx: AppCtx }) {
               <button onClick={() => ctx.api.signOut()} className={navBtn} aria-label={t.navSignOut}><LogOut className="h-4 w-4" /></button>
             </>
           ) : (
-            <a href={href({ name: 'signin', next: window.location.hash || '#/' })} className={navBtn}><LogIn className="h-4 w-4" />{t.navSignIn}</a>
+            <a href={href({ name: 'signin', next: window.location.hash || '#/' })} className={navBtn}><LogIn className="h-4 w-4" /><span className="whitespace-nowrap">{t.navSignIn}</span></a>
           )}
           <div className="ml-1 flex items-center rounded-lg border border-navy-200 bg-white p-0.5 shadow-sm" role="group" aria-label={t.langAria}>
             {(['en', 'es'] as const).map((l) => (

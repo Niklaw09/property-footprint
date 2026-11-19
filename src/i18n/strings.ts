@@ -19,7 +19,7 @@ const en = {
 
   howTitle: 'How it works',
   how1Title: 'We search the way the sites do',
-  how1Body: 'We check Zillow and Redfin’s own address lookup, then search 60+ listing, brokerage, tour and video sites for your exact address.',
+  how1Body: 'We check Zillow’s own address lookup, then search 60+ listing, brokerage, tour, video and social sites for your exact address.',
   how2Title: 'Only your exact home',
   how2Body: 'Every result must match your house number, street, and city or ZIP. Other units and neighbors are filtered out. We never make up links.',
   how3Title: 'Step-by-step removal',
@@ -30,7 +30,7 @@ const en = {
   whyBody: 'A chatbot can tell you how Zillow’s photo settings work. It can’t check 60 sites for your address, prove each page is really your home, keep track of the requests you sent, and keep re-checking until the photos are gone.',
 
   scanningTitle: 'Scanning',
-  scanStage1: 'Asking Zillow and Redfin for your exact property page',
+  scanStage1: 'Asking Zillow for your exact property page',
   scanStage2: 'Searching listing portals and brokerage sites',
   scanStage3: 'Looking for 3D tours, property websites and videos',
   scanStage4: 'Checking image results',
@@ -113,6 +113,7 @@ const en = {
   reviewHide: 'Hide',
   errPromoOver: 'The free launch spots are all taken. You can still unlock this home.',
   errPromoUsed: 'The free launch offer is one home per account, and you’ve already used yours.',
+  errSignIn: 'Please sign in first.',
   errReview: 'Please pick 1 to 5 stars.',
   previewBadge: 'Free preview',
   coveredBy: 'Removed automatically when you remove it from Zillow',
@@ -215,7 +216,7 @@ const es: Strings = {
   byCompany: 'de High Point Perspective',
   navGuides: 'Guías de eliminación',
   navMyHomes: 'Mis casas',
-  navSignIn: 'Iniciar sesión',
+  navSignIn: 'Entrar',
   navSignOut: 'Cerrar sesión',
   langAria: 'Idioma',
 
@@ -229,7 +230,7 @@ const es: Strings = {
 
   howTitle: 'Cómo funciona',
   how1Title: 'Buscamos como lo hacen los sitios',
-  how1Body: 'Consultamos la búsqueda de direcciones de Zillow y Redfin, y luego buscamos tu dirección exacta en más de 60 sitios de anuncios, corredurías, recorridos y videos.',
+  how1Body: 'Consultamos la búsqueda de direcciones de Zillow y luego buscamos tu dirección exacta en más de 60 sitios de anuncios, corredurías, recorridos, videos y redes sociales.',
   how2Title: 'Solo tu casa exacta',
   how2Body: 'Cada resultado debe coincidir con tu número, calle y ciudad o código postal. Filtramos otras unidades y vecinos. Nunca inventamos enlaces.',
   how3Title: 'Eliminación paso a paso',
@@ -240,7 +241,7 @@ const es: Strings = {
   whyBody: 'Un chatbot puede explicarte cómo funcionan las fotos en Zillow. No puede revisar 60 sitios con tu dirección, comprobar que cada página es tu casa, llevar el control de tus solicitudes y seguir revisando hasta que las fotos desaparezcan.',
 
   scanningTitle: 'Escaneando',
-  scanStage1: 'Pidiendo a Zillow y Redfin la página exacta de tu propiedad',
+  scanStage1: 'Pidiendo a Zillow la página exacta de tu propiedad',
   scanStage2: 'Buscando en portales y sitios de corredurías',
   scanStage3: 'Buscando recorridos 3D, sitios de la propiedad y videos',
   scanStage4: 'Revisando resultados de imágenes',
@@ -323,6 +324,7 @@ const es: Strings = {
   reviewHide: 'Ocultar',
   errPromoOver: 'Ya se tomaron todos los lugares gratis. Aún puedes desbloquear esta casa.',
   errPromoUsed: 'La oferta gratis es de una casa por cuenta y ya usaste la tuya.',
+  errSignIn: 'Primero inicia sesión.',
   errReview: 'Elige de 1 a 5 estrellas.',
   previewBadge: 'Vista previa gratis',
   coveredBy: 'Se quita automáticamente cuando lo quitas de Zillow',

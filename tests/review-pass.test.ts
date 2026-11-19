@@ -123,15 +123,17 @@ describe('photo check', () => {
     const pad = 'x'.repeat(3000);
     const fetchFn = (async (url: string) => new Response(url.includes('withphotos')
       ? `<html>${pad}<meta property="og:image" content="https://photos.mls.example.com/a.jpg"></html>`
-      : `<html>${pad}<p>3 beds 2 baths</p></html>`, { headers: { 'content-type': 'text/html' } })) as any;
+      : url.includes('nophotos') ? `<html><meta property="og:title" content="1 Main St">${pad}<p>3 beds 2 baths</p></html>`
+      : `<html>${pad}<div id="root"></div></html>`, { headers: { 'content-type': 'text/html' } })) as any;
     const list = [
       f('https://www.zillow.com/homedetails/1_zpid/', 'zillow.com', [], 'portal'),
       f('https://agent.com/withphotos/1', 'agent.com'),
       f('https://agent2.com/nophotos/1', 'agent2.com'),
       f('https://agent3.com/x/1', 'agent3.com', ['https://img/1.jpg']),
+      f('https://agent4.com/app/1', 'agent4.com'), // built in the browser: no content in the HTML proves nothing
     ];
     await labelPhotos(list, fetchFn);
-    expect(list.map((x) => x.photos)).toEqual(['unknown', 'seen', 'none', 'seen']);
+    expect(list.map((x) => x.photos)).toEqual(['unknown', 'seen', 'none', 'seen', 'unknown']);
   });
 });
 
@@ -148,11 +150,13 @@ describe('priority sites', () => {
 });
 
 describe('search budget', () => {
-  it('worst case stays at 25 searches per scan (15 first-round + 10 fill-in)', async () => {
+  it('worst case stays at 31 searches per scan (15 first-round + 10 fill-in + 6 retries)', async () => {
     const { buildQueries, fillQueries } = await import('@engine/engine.ts');
     const a = parseAddress('14425 American Kestrel Dr, Austin, TX 78738');
     expect(buildQueries(a).filter((q) => !q.fallbackOnly).length).toBe(15);
     expect(fillQueries(a, []).length).toBeLessThanOrEqual(10);
+    const { retryQueries } = await import('@engine/engine.ts');
+    expect(retryQueries(a, []).length).toBe(6);
     expect(fillQueries(a, []).flatMap((q) => q.sites ?? [])).toContain('kw.com');
   });
 

@@ -43,6 +43,8 @@ export interface ScanDiagnostics {
   rejected: Record<string, number>;
   durationMs: number;
   searchMode?: string;
+  /** Each search: its label, the sites it asked for, and how many results came back. For the self-test. */
+  perQuery?: { label: string; sites?: string; n: number }[];
 }
 
 export interface ScanResult {
@@ -122,7 +124,7 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
 
     // Match on the URL slug first (strongest), then on URL + title + snippet.
     // Social post links glue words together ("j-u-s-t-l-i-s-t-e-d5062-perth-street"), so split letters from digits.
-    const slug = site.category === 'social' ? urlText(c.url).replace(/([a-z])(\d)/g, '$1 $2') : urlText(c.url);
+    const slug = site.category === 'social' ? urlText(c.url).replace(/([a-z])(\d)/g, '$1 $2').replace(/\b(\d{5})([a-z])/g, '$1 $2') : urlText(c.url);
     const text = isLookup ? `${c.addressText ?? ''}` : `${slug} | ${c.title} | ${c.snippet}`;
     const m = matchAddress(a, text);
     if (m.level === 'none') { bump('address_mismatch'); continue; }
@@ -177,7 +179,7 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
   // A brand page known only from a sister site's listing id (never seen in search) is shown as a possible match:
   // the listing is the same, but that brand may have taken its copy down.
   for (const f of findings) {
-    if (f.foundVia.every((v) => v === 'derived:anywhere')) {
+    if (f.foundVia.every((v) => v === 'derived:anywhere' || v === 'derived:realtor')) {
       f.confidence = 'likely';
       if (!f.evidence.includes('same_listing_id')) f.evidence.push('same_listing_id');
     } else if (f.foundVia.some((v) => v.startsWith('derived:')) && !f.evidence.includes('same_listing_id')) f.evidence.push('same_listing_id');
@@ -262,6 +264,10 @@ export function siblingCandidates(a: Address, findings: Finding[]): Candidate[] 
     if (lid && Object.keys(ANYWHERE_PATHS).some((d) => f.domain === d || f.domain.endsWith('.' + d))) {
       for (const base of Object.values(ANYWHERE_PATHS)) out.push({ url: `${base}/${lid[1]}/${lid[2]}/${lid[3]}/${lid[4]}`, title, snippet: '', via: 'derived:anywhere' });
     }
+    if (f.siteKey === 'realtor') {
+      const p = f.url.match(/\/realestateandhomes-detail\/[^/?#]+/)?.[0];
+      if (p) out.push({ url: `https://www.homefinder.com${p}`, title, snippet: '', via: 'derived:realtor' });
+    }
     if (f.siteKey === 'homefinder') {
       const p = f.url.match(/\/realestateandhomes-detail\/[^/?#]+/)?.[0];
       if (p) out.push({ url: `https://www.realtor.com${p}`, title, snippet: '', via: 'derived:homefinder' });
@@ -275,15 +281,22 @@ export function siblingCandidates(a: Address, findings: Finding[]): Candidate[] 
  * seen. Otherwise, when allowed, open the page (all at once, at most ~6 seconds in total).
  */
 const PHOTO_DEADLINE_MS = 7000;
+const PHOTO_FAMILIES: Record<string, string> = {
+  zillow: 'zillow', trulia: 'zillow', hotpads: 'zillow',
+  century21: 'anywhere', era: 'anywhere', bhgre: 'anywhere', coldwellbanker: 'anywhere',
+  realtor: 'realtor', homefinder: 'realtor',
+};
+const photoFamily = (key: string) => PHOTO_FAMILIES[key] ?? key;
 export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null): Promise<void> {
   // An image result can point at another link to the same page (".../70333738_zpid/" vs ".../14425-...-/70333738_zpid/").
   // Same site and the same listing id means the same page.
+  // Sister sites show the same listing (and photos) under the same id, so they count as one site here.
   const ids = (f: Finding) => new Set(f.url.match(/\d{6,}|lid-[A-Za-z0-9]+|M\d{5}-\d{5}/g) ?? []);
   const withPics = findings.filter((f) => f.thumbnails.length);
   const todo: Finding[] = [];
   for (const f of findings) {
     const mine = ids(f);
-    if (!f.thumbnails.length && mine.size && withPics.some((g) => g.siteKey === f.siteKey && [...ids(g)].some((t) => mine.has(t)))) f.photos = 'seen';
+    if (!f.thumbnails.length && mine.size && withPics.some((g) => photoFamily(g.siteKey) === photoFamily(f.siteKey) && [...ids(g)].some((t) => mine.has(t)))) f.photos = 'seen';
     else if (f.thumbnails.length) f.photos = 'seen';
     else if (fetchFn && f.category !== 'social' && f.category !== 'video' && canFetch(f.domain)) todo.push(f);
     else f.photos = 'unknown';
@@ -317,6 +330,20 @@ export function fillQueries(a: Address, prelim: Finding[]): SearchQuery[] {
     i += n;
   }
   return out;
+}
+
+/** The biggest sites, retried one at a time when both earlier rounds missed them. Order = priority. */
+export const RETRY_DOMAINS = ['realtor.com', 'homes.com', 'redfin.com', 'coldwellbankerhomes.com', 'century21.com', 'bhhs.com', 'compass.com', 'kw.com', 'exprealty.com', 'remax.com', 'movoto.com', 'sothebysrealty.com'];
+
+export function retryQueries(a: Address, found: Finding[], max = 6): SearchQuery[] {
+  const have = new Set(found.map((f) => f.domain));
+  const has = (d: string) => [...have].some((h) => h === d || h.endsWith('.' + d));
+  // Coldwell Banker runs two sites; a page on either one covers it.
+  const covered = (d: string) => has(d) || (d === 'coldwellbankerhomes.com' && has('coldwellbanker.com'));
+  const phrase = streetLine(a, { full: true, unit: false });
+  const extra = [a.unit ? a.unit.toUpperCase() : '', a.zip ?? a.city].filter(Boolean).join(' ');
+  return RETRY_DOMAINS.filter((d) => !covered(d)).slice(0, max)
+    .map((d) => ({ label: 'retry', kind: 'web' as const, phrases: [phrase], extra, sites: [d], num: 10 }));
 }
 
 const ZILLOW_FAMILY = new Set(['zillow', 'trulia', 'hotpads']); // share Zillow's property ids, not MLS numbers
@@ -424,6 +451,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
       try {
         const rows = await withTimeout(timeoutMs, (s) => opts.provider!.search(q!, s));
         candidates.push(...rows);
+        (diagnostics.perQuery ??= []).push({ label: q.label, sites: q.sites?.join(','), n: rows.length });
       } catch (e) {
         diagnostics.queryErrors.push({ label: q.label, code: e instanceof ProviderError ? e.code : 'network', detail: String((e as Error)?.message ?? '').slice(0, 200) });
       }
@@ -441,6 +469,12 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
     diagnostics.queries += round2.length;
     queue.push(...round2);
     await Promise.all(Array.from({ length: Math.min(round2.length, opts.concurrency ?? 8) }, worker));
+
+    candidates.push(...siblingCandidates(a, evaluate(a, candidates, {})));
+    const round3 = retryQueries(a, evaluate(a, candidates, {}));
+    diagnostics.queries += round3.length;
+    queue.push(...round3);
+    await Promise.all(Array.from({ length: Math.min(round3.length, opts.concurrency ?? 8) }, worker));
   }
 
   candidates.push(...siblingCandidates(a, evaluate(a, candidates, {})));

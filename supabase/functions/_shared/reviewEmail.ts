@@ -7,6 +7,8 @@ export interface ReviewEmailInput {
   display: string; // the home's address
   reportUrl: string; // link back to the report, where the on-site review form is
   googleUrl: string | null;
+  /** A Quick scan has no re-checks, so the email doesn't promise them. */
+  plan?: 'quick' | 'monitor';
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -21,7 +23,7 @@ export function reviewEmail(i: ReviewEmailInput): { subject: string; text: strin
       'Si tienes un minuto, nos ayudaría mucho saber qué te pareció, sea bueno o malo. Es totalmente opcional y no cambia nada en tu cuenta.',
       `Deja tu opinión en tu informe: ${i.reportUrl}`,
       ...(i.googleUrl ? [`O en Google: ${i.googleUrl}`] : []),
-      'Seguiremos revisando tu casa automáticamente. Este es el único correo que te enviaremos sobre esto.',
+      i.plan === 'quick' ? 'Este es el único correo que te enviaremos sobre esto.' : 'Seguiremos revisando tu casa automáticamente. Este es el único correo que te enviaremos sobre esto.',
       'Gracias,',
       'HomePrint, un servicio de High Point Perspective',
     ]
@@ -31,7 +33,7 @@ export function reviewEmail(i: ReviewEmailInput): { subject: string; text: strin
       'If you have a minute, we’d really like to hear how it went, good or bad. It’s completely optional and doesn’t change anything on your account.',
       `Leave a review on your report: ${i.reportUrl}`,
       ...(i.googleUrl ? [`Or on Google: ${i.googleUrl}`] : []),
-      'We’ll keep re-checking your home automatically. This is the only email we’ll send about this.',
+      i.plan === 'quick' ? 'This is the only email we’ll send about this.' : 'We’ll keep re-checking your home automatically. This is the only email we’ll send about this.',
       'Thanks,',
       'HomePrint, a service of High Point Perspective',
     ];

@@ -221,6 +221,7 @@ export interface MyReportSummary {
   inProgress: number;
   monitor: boolean;
   paidUntil: string | null;
+  plan: Plan | null;
 }
 
 const defaultHash = async (s: string): Promise<string> => {
@@ -492,6 +493,7 @@ export function createService(cfg: ServiceConfig) {
           id: r.id, display: r.display, scannedAt: r.last_scanned_at, monitor: m.monitor,
           nextScanAt: planOf(ent) === 'monitor' ? r.next_scan_at : null,
           paidUntil: ent?.paid_until ?? null,
+          plan: planOf(ent),
           total: rows.length, removed: removed.size,
           inProgress: tasks.filter((t) => (t.status === 'sent' || t.status === 'waiting') && !removed.has(t.fid)).length,
         });
@@ -546,8 +548,11 @@ export function createService(cfg: ServiceConfig) {
       if (!(await store.getMembership(input.userId, input.reportId))) throw new ServiceError('forbidden');
       if (await unlockedFor(input.userId, input.reportId)) return buildView(report, input.userId);
       if (!promoLimit || (await store.peekBucket(PROMO_BUCKET)) >= promoLimit) throw new ServiceError('promo_over');
-      if ((await store.bump(`promo:user:${input.userId}`, PROMO_TTL)) > 1) throw new ServiceError('promo_used');
+      if ((await store.peekBucket(`promo:user:${input.userId}`)) > 0) throw new ServiceError('promo_used');
+      // Take a spot first, then mark the account, so a person isn't marked as having used the offer when the
+      // last spot went to someone else at the same moment.
       if ((await store.bump(PROMO_BUCKET, PROMO_TTL)) > promoLimit) throw new ServiceError('promo_over');
+      if ((await store.bump(`promo:user:${input.userId}`, PROMO_TTL)) > 1) throw new ServiceError('promo_used');
       await api.grantPurchase({ userId: input.userId, reportId: input.reportId, sessionId: `promo_${input.userId}_${input.reportId}`, amountCents: 0, lang: input.lang });
       return buildView((await store.getReport(input.reportId))!, input.userId);
     },
@@ -561,7 +566,7 @@ export function createService(cfg: ServiceConfig) {
     },
 
     /** Called by the hourly cron: one follow-up email about a week after a home is unlocked. */
-    async sendReviewEmails(send: (to: { userId: string; reportId: string; lang: string; display: string }) => Promise<boolean>, limit = 20): Promise<number> {
+    async sendReviewEmails(send: (to: { userId: string; reportId: string; lang: string; display: string; plan: Plan }) => Promise<boolean>, limit = 20): Promise<number> {
       const to = new Date(now().getTime() - REVIEW_EMAIL_AFTER_MS);
       const from = new Date(to.getTime() - 7 * DAY_MS); // don't email people from long ago
       const due = await store.dueReviewEmails(from.toISOString(), to.toISOString(), limit);
@@ -571,7 +576,10 @@ export function createService(cfg: ServiceConfig) {
         if (!report) continue;
         // Mark first so a crash can't send twice.
         await store.markReviewEmailSent(e.session_id, now().toISOString());
-        if (await send({ userId: e.user_id, reportId: e.report_id, lang: e.lang ?? 'en', display: report.display }).catch(() => false)) sent++;
+        // One email per home, even when it was paid for twice (a Quick scan, then the upgrade).
+        if ((await store.bump(`review_email:${e.user_id}:${e.report_id}`, 400 * 86400)) > 1) continue;
+        const plan = planOf(await store.getEntitlement(e.user_id, e.report_id)) ?? planOf(e) ?? 'monitor';
+        if (await send({ userId: e.user_id, reportId: e.report_id, lang: e.lang ?? 'en', display: report.display, plan }).catch(() => false)) sent++;
       }
       return sent;
     },
