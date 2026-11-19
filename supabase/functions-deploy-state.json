@@ -3,7 +3,7 @@
   "functions": {
     "api": {
       "hasChanged": false,
-      "hash": "180d8c24143af8a28291841fdd995153f5974d2d814ffaacd5cfd5910d5ec0f3481feaea7f2c1068855cbc6a34652b1a92c6eacccb44ad38210498253030baa1"
+      "hash": "c216966eaaa36261cef5aff509dcb5206c1141844b732ffd51b358eccc4273dd481feaea7f2c1068855cbc6a34652b1a92c6eacccb44ad38210498253030baa1"
     },
     "stripe-webhook": {
       "hasChanged": false,
