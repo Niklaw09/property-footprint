@@ -55,6 +55,11 @@ export function listingImage(html: string, pageUrl: string): string | undefined 
   return undefined;
 }
 
+/** The page's HTML carries its content (share tags or structured data), so missing photos mean something. */
+export function serverRendered(html: string): boolean {
+  return /<meta[^>]+(?:property|name)=["']og:(?:title|description)["']/i.test(html) || /application\/ld\+json/i.test(html);
+}
+
 /** Decide from a page's HTML whether it shows listing photos. Exported for tests. */
 export function htmlShowsPhotos(html: string): boolean {
   const og = [...html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/gi)]
@@ -102,7 +107,8 @@ export async function checkPage(url: string, fetchFn: FetchLike, timeoutMs = 600
     const html = await readSome(res, 400_000);
     // A page that only says "captcha"/"access denied" proves nothing.
     if (html.length < 2000 || /captcha|access denied|are you a robot|cf-chl/i.test(html.slice(0, 5000))) return { status: 'unknown' };
-    if (!htmlShowsPhotos(html)) return { status: 'none' };
+    // Pages built in the browser have no photos in their HTML at all; that proves nothing.
+    if (!htmlShowsPhotos(html)) return { status: serverRendered(html) ? 'none' : 'unknown' };
     return { status: 'seen', image: listingImage(html, res.url || url) };
   } catch {
     return { status: 'unknown' };

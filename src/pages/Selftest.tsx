@@ -18,15 +18,16 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="font-serif text-3xl font-semibold text-navy-900">Accuracy check</h1>
-      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 250 search credits; limited to 10 runs a day.</p>
+      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 300 search credits; limited to 10 runs a day.</p>
       <button onClick={run} disabled={state === 'running'} className="btn-primary mt-6">
         {state === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}{state === 'running' ? 'Running (about a minute)…' : 'Run accuracy check'}
       </button>
       {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       {res && (
         <div className="mt-8">
-          <p className="font-serif text-4xl font-semibold text-navy-900">{res.namedPct ?? res.pct}%</p>
-          <p className="text-sm text-navy-500">{res.namedFound} of {res.namedExpected} pages on named sites found (portals, brand brokerages, social)</p>
+          <p className="font-serif text-4xl font-semibold text-navy-900">{res.sitesPct ?? res.namedPct ?? res.pct}%</p>
+          <p className="text-sm text-navy-500">{res.sitesFound} of {res.sitesExpected} big sites found the home on (portals, brand brokerages, social; any page on the site counts)</p>
+          <p className="mt-1 text-sm text-navy-500">Pages on big sites: {res.namedFound} of {res.namedExpected} ({res.namedPct}%)</p>
           <p className="mt-1 text-sm text-navy-500">All confirmed pages, including small agent sites: {res.found} of {res.expected} ({res.pct}%)</p>
           {res.photos && <p className="mt-1 text-sm text-navy-500">Photo check on exact matches: {res.photos.seen} photos seen, {res.photos.none} no photos seen, {res.photos.unknown} couldn’t check</p>}
           <p className="mt-1 text-sm text-navy-500">

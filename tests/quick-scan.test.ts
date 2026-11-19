@@ -70,3 +70,39 @@ describe('$4.99 Quick scan', () => {
     expect(parseSession({ id: 'cs_2', payment_status: 'paid', amount_total: 1999, metadata: { user_id: 'u', report_id: 'r' } }).plan).toBe('monitor');
   });
 });
+
+describe('overnight fixes', () => {
+  it('sends one review email per home, even after a Quick scan and an upgrade, without promising re-checks on a Quick scan', async () => {
+    let clock = new Date('2026-11-19T12:00:00Z');
+    const svc = createService({ store: memoryStore(), engine: () => ({ provider: fixtureProvider(results), lookups: [] }), now: () => clock });
+    const { view } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_q', amountCents: 499, plan: 'quick' });
+    await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_up', amountCents: 1500, plan: 'monitor' });
+    clock = new Date(clock.getTime() + 8 * DAY);
+    const sent: any[] = [];
+    expect(await svc.sendReviewEmails(async (x) => { sent.push(x); return true; })).toBe(1);
+    expect(sent[0].plan).toBe('monitor');
+    const { reviewEmail } = await import('@engine/reviewEmail.ts');
+    expect(reviewEmail({ lang: 'en', display: 'x', reportUrl: 'u', googleUrl: null, plan: 'quick' }).text).not.toContain('re-checking');
+    expect(reviewEmail({ lang: 'es', display: 'x', reportUrl: 'u', googleUrl: null, plan: 'quick' }).text).not.toContain('revisando');
+    expect(reviewEmail({ lang: 'en', display: 'x', reportUrl: 'u', googleUrl: null }).text).toContain('re-checking');
+  });
+
+  it('My homes says which plan a home is on', async () => {
+    const { svc } = setup();
+    const { view } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_q', amountCents: 499, plan: 'quick' });
+    const [row] = await svc.myReports('u1');
+    expect(row.plan).toBe('quick');
+    expect(row.nextScanAt).toBeNull();
+  });
+
+  it('does not mark the account as having used the launch offer when the spots ran out', async () => {
+    const svc = createService({ store: memoryStore(), engine: () => ({ provider: fixtureProvider(results), lookups: [] }), promoLimit: 1 });
+    const a = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
+    const b = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u2', ip: '2' });
+    await svc.claimPromo({ userId: 'u1', reportId: a.view.id });
+    await expect(svc.claimPromo({ userId: 'u2', reportId: b.view.id })).rejects.toMatchObject({ code: 'promo_over' });
+    expect((await svc.getReport({ reportId: b.view.id, userId: 'u2' })).promo?.usedByYou).toBe(false);
+  });
+});

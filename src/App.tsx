@@ -22,13 +22,16 @@ export default function App() {
   const { t } = useLang();
   const [api, setApi] = useState<Api | null>(null);
   const [user, setUser] = useState<{ email: string } | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     let off = () => {};
     getApi().then(async (a) => {
-      setApi(a);
+      setUser(await a.session().catch(() => null));
       off = a.onAuth((u) => setUser(u));
-      setUser(await a.session());
+      const qs0 = new URLSearchParams(window.location.search);
+      if (qs0.get('paid')) setConfirming(true);
+      setApi(a);
       // Returning from a sign-in link: ?next=#/r/<id>&code=...  -> go to the page they came from.
       const qs = new URLSearchParams(window.location.search);
       const next = qs.get('next');
@@ -37,6 +40,7 @@ export default function App() {
       if (paid && /^cs_[A-Za-z0-9_]+$/.test(paid)) {
         try { await a.confirm(paid); } catch { /* the webhook will still apply it */ }
       }
+      setConfirming(false);
       if (next || paid) {
         const target = next || window.location.hash || '#/';
         window.history.replaceState(null, '', window.location.pathname + target);
@@ -57,7 +61,8 @@ export default function App() {
         <div className="border-b border-sage-200 bg-sage-50 px-4 py-2 text-center text-xs text-sage-800">{t.demoBanner}</div>
       )}
       <main className="flex-1">
-        {route.name === 'home' && <Landing ctx={ctx} />}
+        {confirming && <p role="status" className="py-24 text-center text-navy-600">{t.paymentConfirming}</p>}
+        {!confirming && route.name === 'home' && <Landing ctx={ctx} />}
         {route.name === 'report' && <Report ctx={ctx} id={route.id} />}
         {route.name === 'guides' && <Guides />}
         {route.name === 'guide' && <Guide pbKey={route.key} />}

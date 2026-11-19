@@ -1,6 +1,6 @@
 // Built-in accuracy self-test: scans 10 real homes sold in fall 2026 and reports how many of their known pages were found.
 // `expect` is the original hand-collected list. `confirmed` adds the pages a live run found with an exact address
-// match and that were checked by hand after the three Nov 19, 2026 runs (junk, other homes and unverifiable social posts left out).
+// match and that were checked by hand after the Nov 19, 2026 runs (junk, other homes and unverifiable social posts left out).
 // Together they are the page list the headline score is measured against. Add new real pages here after each run.
 import { parseAddress } from './address.ts';
 import { runScan, type EngineOptions } from './engine.ts';
@@ -31,6 +31,7 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://neuhausre.com/properties/austin/14425-american-kestrel-dr-01257001460000"
     ],
     "confirmed": [
+      "https://www.coldwellbanker.com/tx/austin/14425-american-kestrel-dr/lid-P00800000HErurIxBo8dEQKHUT4iwp5I08sPZckG",
       "https://www.compass.com/homedetails/14425-American-Kestrel-Dr-Austin-TX-78738/1BZA4M_pid/",
       "https://www.bhgre.com/home/detail/tx/austin/14425-american-kestrel-dr/lid-P00800000HErurIxBo8dEQKHUT4iwp5I08sPZckG",
       "https://colecapper.prod.consumer.kw.com/property/14425-American-Kestrel-Drive-Austin-TX-78738/2142383868491834",
@@ -113,6 +114,7 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://valleygroupaz.realgeeks.com/property/7068179/"
     ],
     "confirmed": [
+      "https://www.trulia.com/home/4138-e-tanglewood-dr-phoenix-az-85048-8259511",
       "https://www.era.com/property/detail/az/phoenix/4138-e-tanglewood-dr/lid-P00800000HFu3ZTpuzpOqpd5zJwQh4afQnKqsGFU",
       "https://www.rmxprofessionals.com/property/22-7068179-4138-e-tanglewood-drive-phoenix-AZ-85048",
       "https://www.thebergaminigroup.com/search/arizona/phoenix/remington-trace-lot-110-217-tr-a-f/4138-e-tanglewood-drive-bid-35-7068179",
@@ -135,6 +137,8 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://gnzrealty.com/home/9828-starwood-dr-charlotte-nc-28215-9e656b44"
     ],
     "confirmed": [
+      "https://www.coldwellbanker.com/nc/charlotte/9828-starwood-dr/lid-P00800000HGGIxRY9jkfXsCvB2WSQFV0hLt5E7OU",
+      "https://www.trulia.com/home/9828-starwood-dr-charlotte-nc-28215-5654448",
       "https://www.realtor.com/realestateandhomes-detail/9828-Starwood-Dr_Charlotte_NC_28215_M63316-54990",
       "https://www.homes.com/property/9828-starwood-dr-charlotte-nc/8r5xc8tm4bcc8/",
       "https://www.compass.com/homedetails/9828-Starwood-Dr-Charlotte-NC-28215/XP4MH_pid/",
@@ -175,6 +179,9 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://perfecthouseforyou.realgeeks.com/property/6283032/"
     ],
     "confirmed": [
+      "https://www.coldwellbanker.com/co/denver/5062-perth-st/lid-P00800000HFKNtGGaC1zyHdv3dqu1FTjF1CnD61Y",
+      "https://www.era.com/property/detail/co/denver/5062-perth-st/lid-P00800000HFKNtGGaC1zyHdv3dqu1FTjF1CnD61Y",
+      "https://www.trulia.com/home/5062-perth-st-denver-co-80249-61469624",
       "https://www.realtor.com/realestateandhomes-detail/5062-Perth-St_Denver_CO_80249_M22729-21204",
       "https://www.homes.com/property/5062-perth-st-denver-co/z5hw8916s4twr/",
       "https://www.compass.com/homedetails/5062-Perth-St-Denver-CO-80249/12DBCH_pid/",
@@ -241,6 +248,8 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://granthammond.com/idx/mls-3602048-312_parmley_ln_nashville_tn_37207"
     ],
     "confirmed": [
+      "https://www.coldwellbanker.com/tn/nashville/312-parmley-ln/lid-P00800000HI3vjK5Sek2gpyNAGB7JUVtHZS7F86v",
+      "https://www.parksauctionandrealty.com/property/12-3602048-312-Parmley-Ln-Nashville-TN-37207",
       "https://www.trulia.com/home/312-parmley-ln-nashville-tn-37207-121390342",
       "https://www.realtor.com/realestateandhomes-detail/312-Parmley-Ln_Nashville_TN_37207_M88479-81438",
       "https://angelamcandrew.com/home-search/listings/4324745903676553011-312-Parmley-Ln",
@@ -288,6 +297,7 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.coldwellbankerhomes.com/or/portland/3114-se-lincoln-st/pid_72815754/"
     ],
     "confirmed": [
+      "https://www.trulia.com/home/3114-se-lincoln-st-portland-or-97214-53958423",
       "https://www.realtor.com/realestateandhomes-detail/3114-SE-Lincoln-St_Portland_OR_97214_M17342-23418",
       "https://www.homes.com/property/3114-se-lincoln-st-portland-or/m4pb4hxt4y83c/",
       "https://www.compass.com/homedetails/3114-SE-Lincoln-St-Portland-OR-97214/1W580_pid/",
@@ -322,6 +332,8 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://homesbymarco.com/properties/89-montgomery-st-atlanta-ga-30317/1436273"
     ],
     "confirmed": [
+      "https://www.coldwellbanker.com/ga/atlanta/89-montgomery-st-se/lid-P00800000HFdTm4XEDr5gmJKe3EZuICWRmYuXHQ8",
+      "https://www.sweetmagnoliahomes.com/property/86-10825102-89-montgomery-street-se-atlanta-GA-30317",
       "https://www.zillow.com/homedetails/89-Montgomery-St-Atlanta-GA-30317/14467422_zpid/",
       "https://www.trulia.com/home/89-montgomery-st-atlanta-ga-30317-14467422",
       "https://www.realtor.com/realestateandhomes-detail/89-Montgomery-St-SE_Atlanta_GA_30317_M65665-52772",
@@ -381,6 +393,18 @@ function pathKey(u: string): string {
   }
 }
 
+// Sites that are one company's two front doors: a page on either counts for both.
+const SAME_SITE: Record<string, string> = { coldwellbanker: 'coldwellbanker', homefinder: 'realtor' };
+
+/** Which big sites the home is known to be on, and which of those the scan found (any page on that site). */
+export function siteCoverage(namedUrls: string[], foundKeys: string[]): { sitesExpected: number; sitesFound: number; sitesMissed: string[] } {
+  const key = (k: string | undefined) => (k ? SAME_SITE[k] ?? k : '');
+  const want = [...new Set(namedUrls.map((u) => key(siteFor(u)?.key)).filter(Boolean))];
+  const got = new Set(foundKeys.map(key));
+  const missed = want.filter((k) => !got.has(k));
+  return { sitesExpected: want.length, sitesFound: want.length - missed.length, sitesMissed: missed };
+}
+
 export interface SelftestRow {
   address: string;
   /** Pages in this home's list (original + confirmed). */
@@ -394,6 +418,12 @@ export interface SelftestRow {
   namedExpected: number;
   namedFound: number;
   namedMissed: string[];
+  /** Big sites (one per site, any of its pages counts): did we find the home on each site it's known to be on? */
+  sitesExpected: number;
+  sitesFound: number;
+  sitesMissed: string[];
+  /** Each search: "label[sites]=results", to see which searches came back empty. */
+  searches: string[];
   total: number;
   lookups: { key: string; ok: boolean; found: number; error?: string }[];
   queryErrors: number;
@@ -426,6 +456,10 @@ export interface SelftestResult {
   namedExpected: number;
   namedFound: number;
   namedPct: number;
+  /** Headline from Nov 19 (late): big sites covered, one per site per home. */
+  sitesExpected: number;
+  sitesFound: number;
+  sitesPct: number;
   exactPages: number;
   newExact: number;
   photos: { seen: number; none: number; unknown: number };
@@ -456,6 +490,8 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
         origExpected: h.expect.length, origFound: h.expect.filter(hit).length, total: r.findings.length,
         namedExpected: list.filter(isNamedSite).length, namedFound: list.filter((u) => isNamedSite(u) && hit(u)).length,
         namedMissed: missed.filter(isNamedSite),
+        ...siteCoverage(list.filter(isNamedSite), r.findings.map((f) => f.siteKey)),
+        searches: (r.diagnostics.perQuery ?? []).filter((q) => q.sites).map((q) => `${q.label}[${q.sites}]=${q.n}`),
         extras, newExact: r.findings.filter((f) => f.confidence === 'exact' && isNew(f.url)).length,
         searchMode: r.diagnostics.searchMode, exact: r.findings.filter((f) => f.confidence === 'exact').length,
         photos: (['seen', 'none', 'unknown'] as const).reduce((o, k) => ({ ...o, [k]: r.findings.filter((f) => f.confidence === 'exact' && (f.photos ?? 'unknown') === k).length }), { seen: 0, none: 0, unknown: 0 }),
@@ -470,9 +506,11 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   const expected = sum('expected'), found = sum('found'), origExpected = sum('origExpected'), origFound = sum('origFound');
   const namedExpected = sum('namedExpected'), namedFound = sum('namedFound');
+  const sitesExpected = sum('sitesExpected'), sitesFound = sum('sitesFound');
   return {
     rows, expected, found, pct: pct(found, expected), origExpected, origFound, origPct: pct(origFound, origExpected),
     namedExpected, namedFound, namedPct: pct(namedFound, namedExpected),
+    sitesExpected, sitesFound, sitesPct: pct(sitesFound, sitesExpected),
     exactPages: sum('exact'), newExact: sum('newExact'),
     photos: { seen: rows.reduce((s, r) => s + r.photos.seen, 0), none: rows.reduce((s, r) => s + r.photos.none, 0), unknown: rows.reduce((s, r) => s + r.photos.unknown, 0) }, searchMode: rows.map((r) => r.searchMode).filter(Boolean).pop(),
   };
