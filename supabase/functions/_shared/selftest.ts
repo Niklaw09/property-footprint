@@ -119,10 +119,14 @@ export interface SelftestRow {
   firstError?: string;
   /** Results that aren't in the known list, as "confidence | found via | url", to spot junk or new real pages. */
   extras: string[];
+  /** How searches ran: "full" (site:/OR allowed) or the simpler fallback. */
+  searchMode?: string;
+  /** Results with an exact address match, known or not. */
+  exact: number;
   ms: number;
 }
 
-export async function runSelftest(engine: () => EngineOptions, concurrency = 3): Promise<{ rows: SelftestRow[]; expected: number; found: number; pct: number }> {
+export async function runSelftest(engine: () => EngineOptions, concurrency = 3): Promise<{ rows: SelftestRow[]; expected: number; found: number; pct: number; exactPages: number; searchMode?: string }> {
   const rows: SelftestRow[] = [];
   const queue = [...SELFTEST_HOMES];
   const worker = async () => {
@@ -144,7 +148,8 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
         .slice(0, 60);
       rows.push({
         address: h.address, expected: h.expect.length, found: h.expect.length - missed.length, missed, total: r.findings.length,
-        extras, lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
+        extras, searchMode: r.diagnostics.searchMode, exact: r.findings.filter((f) => f.confidence === 'exact').length,
+        lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
         firstError: r.diagnostics.queryErrors[0] ? `${r.diagnostics.queryErrors[0].code}: ${r.diagnostics.queryErrors[0].detail ?? ''}`.trim() : undefined,
       });
     }
@@ -153,5 +158,6 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
   rows.sort((a, b) => a.address.localeCompare(b.address));
   const expected = rows.reduce((s, r) => s + r.expected, 0);
   const found = rows.reduce((s, r) => s + r.found, 0);
-  return { rows, expected, found, pct: expected ? Math.round((found / expected) * 100) : 0 };
+  const exactPages = rows.reduce((s, r) => s + r.exact, 0);
+  return { rows, expected, found, pct: expected ? Math.round((found / expected) * 100) : 0, exactPages, searchMode: rows.map((r) => r.searchMode).filter(Boolean).pop() };
 }

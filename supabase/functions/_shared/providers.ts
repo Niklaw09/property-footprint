@@ -24,6 +24,8 @@ export interface SearchQuery {
 export interface SearchProvider {
   name: string;
   search(q: SearchQuery, signal?: AbortSignal): Promise<Candidate[]>;
+  /** Short description of how searches are running, for diagnostics (e.g. "full" or "simple"). */
+  mode?(): string;
 }
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -84,14 +86,17 @@ async function serperSlot(): Promise<void> {
 const RESTRICTED = /not allowed for free accounts|query pattern not allowed/i;
 // Remembered across scans in this server instance, so later scans skip searches the account can't run.
 // level: 0 = full operators work, 1 = quoted phrase only, 2 = plain words. fullOk: a full search has succeeded.
-const accountState = new Map<string, { level: number; fullOk: boolean }>();
+const accountState = new Map<string, { level: number; fullOk: boolean; at: number }>();
+// After this long, try the full searches again, so an upgraded plan is picked up without a redeploy.
+const REPROBE_MS = 10 * 60 * 1000;
 export function _resetSerperStateForTests(): void { accountState.clear(); nextSlot = 0; }
 
 /** Serper.dev: Google results. https://serper.dev */
 export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): SearchProvider {
   // Shared across queries in this scan: once a pattern is refused, use the simpler form from then on,
   // and don't pay twice for queries that collapse to the same text.
-  const state = accountState.get(apiKey) ?? { level: 0, fullOk: false };
+  const state = accountState.get(apiKey) ?? { level: 0, fullOk: false, at: Date.now() };
+  if (state.level > 0 && Date.now() - state.at > REPROBE_MS) { state.level = 0; state.at = Date.now(); }
   accountState.set(apiKey, state);
   const seen = new Map<string, Promise<any>>();
   async function call(endpoint: string, text: string, num: number, signal?: AbortSignal, attempt = 0): Promise<any> {
@@ -121,6 +126,7 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
   }
   return {
     name: 'serper',
+    mode: () => (state.level === 0 ? (state.fullOk ? 'full' : 'full (unconfirmed)') : state.level === 1 ? 'simple (plan refuses site:/OR)' : 'plain (plan refuses quotes)'),
     async search(q, signal) {
       const endpoint = q.kind === 'images' ? 'images' : q.kind === 'videos' ? 'videos' : 'search';
       if (q.fallbackOnly && state.fullOk && state.level === 0) return []; // full searches already cover it
@@ -140,7 +146,7 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
           break;
         } catch (e) {
           if (e instanceof ProviderError && RESTRICTED.test(e.message) && level < 2) {
-            if (state.level === level) state.level = level + 1;
+            if (state.level === level) { state.level = level + 1; state.at = Date.now(); }
             state.fullOk = false;
             continue;
           }

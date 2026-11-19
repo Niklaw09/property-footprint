@@ -38,6 +38,7 @@ export interface ScanDiagnostics {
   candidates: number;
   rejected: Record<string, number>;
   durationMs: number;
+  searchMode?: string;
 }
 
 export interface ScanResult {
@@ -261,6 +262,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
   };
   await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 5 }, worker)]);
 
+  diagnostics.searchMode = opts.provider?.mode?.();
   diagnostics.candidates = candidates.length;
   const findings = addCoveredSiblings(evaluate(a, candidates, diagnostics.rejected));
   diagnostics.durationMs = Date.now() - started;
