@@ -27,6 +27,9 @@ export interface Api {
   session(): Promise<{ email: string } | null>;
   onAuth(cb: (s: { email: string } | null) => void): () => void;
   sendMagicLink(email: string, nextHash: string): Promise<void>;
+  /** Is "Continue with Google" turned on for this project? (Hidden until it is.) */
+  googleEnabled(): Promise<boolean>;
+  signInWithGoogle(nextHash: string): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -64,6 +67,18 @@ function liveApi(sb: SupabaseClient): Api {
     onAuth(cb) {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(toUser(s)));
       return () => data.subscription.unsubscribe();
+    },
+    async googleEnabled() {
+      // Public auth settings list which sign-in providers are switched on.
+      try {
+        const r = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: anon! } });
+        return !!(await r.json())?.external?.google;
+      } catch { return false; }
+    },
+    async signInWithGoogle(nextHash) {
+      const redirect = `${window.location.origin}${window.location.pathname}?next=${encodeURIComponent(nextHash)}`;
+      const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect } });
+      if (error) throw new ApiError('auth_failed', error.message);
     },
     async sendMagicLink(email, nextHash) {
       const redirect = `${window.location.origin}${window.location.pathname}?next=${encodeURIComponent(nextHash)}`;

@@ -83,6 +83,11 @@ export function demoApi(): Api {
       user = { email: email || 'demo@example.com' };
       listeners.forEach((l) => l(user));
     },
+    async googleEnabled() { return true; },
+    async signInWithGoogle() {
+      user = { email: 'demo@gmail.com' };
+      listeners.forEach((l) => l(user));
+    },
     async signOut() { user = null; listeners.forEach((l) => l(null)); },
   };
 }
