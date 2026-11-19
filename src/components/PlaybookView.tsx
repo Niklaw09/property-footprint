@@ -2,6 +2,8 @@ import { ExternalLink, Clock, BadgeCheck, Info, Phone, Mail, Globe } from 'lucid
 import type { Playbook } from '@engine/playbooks.ts';
 import { useLang } from '@/lib/i18n';
 import LetterBuilder from './LetterBuilder';
+import { FlowDiagram, MoreInfoList, MoreToggle, StepVisual } from './GuideVisuals';
+import { GUIDE_STRINGS } from '@/i18n/guides';
 
 interface Props {
   pb: Playbook;
@@ -22,6 +24,7 @@ export function StatusBadge({ pb }: { pb: Playbook }) {
 
 export default function PlaybookView({ pb, address, siteName, urls, ownerName, onOwnerName }: Props) {
   const { t, lang } = useLang();
+  const g = GUIDE_STRINGS[lang];
   const email = pb.contacts?.find((c) => c.kind === 'email')?.value;
   return (
     <div className="space-y-5">
@@ -33,20 +36,24 @@ export default function PlaybookView({ pb, address, siteName, urls, ownerName, o
       <div className="rounded-lg border-l-4 border-sage-400 bg-sage-50 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-sage-800">{t.pbOutcome}</p>
         <p className="mt-1 text-sm leading-relaxed text-navy-800">{pb.outcome[lang]}</p>
+        {pb.covers?.length ? <p className="mt-2 text-xs text-navy-500"><span className="font-semibold">{g.alsoCovers}:</span> {pb.covers.join(', ')}</p> : null}
       </div>
+      <FlowDiagram flow={pb.flow} />
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">{t.pbSteps}</p>
         <ol className="mt-2 space-y-3">
           {pb.steps.map((s, i) => (
             <li key={i} className="flex gap-3">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-navy-800 text-xs font-semibold text-white">{i + 1}</span>
-              <div className="text-sm leading-relaxed text-navy-800">
+              <div className="min-w-0 flex-1 text-sm leading-relaxed text-navy-800">
                 <p>{s[lang]}</p>
+                {s.ui && <StepVisual ui={s.ui} />}
                 {s.link && (
-                  <a href={s.link.url} target="_blank" rel="noopener noreferrer" className="link mt-1 inline-flex items-center gap-1 text-sm">
+                  <a href={s.link.url} target="_blank" rel="noopener noreferrer" className="link mt-1.5 inline-flex items-center gap-1 text-sm">
                     {s.link[lang]}<ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
+                {s.more && <MoreToggle text={s.more[lang]} />}
               </div>
             </li>
           ))}
@@ -79,6 +86,7 @@ export default function PlaybookView({ pb, address, siteName, urls, ownerName, o
           </ul>
         </div>
       ) : null}
+      {pb.more?.length ? <MoreInfoList items={pb.more} /> : null}
       {pb.sources.length > 0 && (
         <details className="text-xs text-navy-400">
           <summary className="cursor-pointer">{t.pbSources}</summary>

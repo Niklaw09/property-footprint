@@ -31,7 +31,9 @@ export default function LetterBuilder({ kinds, address, siteName, urls, ownerNam
       setTimeout(() => setCopied(false), 1800);
     } catch { /* clipboard blocked */ }
   };
-  const mailto = `mailto:${emailTo ?? ''}?subject=${encodeURIComponent(letter.subject)}&body=${encodeURIComponent(text)}`;
+  // The site's own address only fits the letters written to the site; agents, photographers and posters have their own.
+  const to = kind === 'site_support' || kind === 'privacy_rights' ? emailTo ?? '' : '';
+  const mailto = `mailto:${to}?subject=${encodeURIComponent(letter.subject)}&body=${encodeURIComponent(text)}`;
 
   return (
     <div className="rounded-xl border border-navy-100 bg-cream-50 p-4">
