@@ -1,5 +1,5 @@
 import { ExternalLink, Clock, BadgeCheck, Info, Phone, Mail, Globe } from 'lucide-react';
-import type { Playbook } from '@engine/playbooks.ts';
+import { playbookName, type Playbook } from '@engine/playbooks.ts';
 import { useLang } from '@/lib/i18n';
 import LetterBuilder from './LetterBuilder';
 import { FlowDiagram, MoreInfoList, MoreToggle, StepVisual } from './GuideVisuals';
@@ -74,7 +74,7 @@ export default function PlaybookView({ pb, address, siteName, urls, ownerName, o
         </div>
       ) : null}
       {pb.letters.length > 0 && address && (
-        <LetterBuilder kinds={pb.letters} address={address} siteName={siteName ?? pb.name} urls={urls ?? []} ownerName={ownerName} onOwnerName={onOwnerName} emailTo={email} />
+        <LetterBuilder kinds={pb.letters} address={address} siteName={siteName ?? playbookName(pb, lang)} urls={urls ?? []} ownerName={ownerName} onOwnerName={onOwnerName} emailTo={email} />
       )}
       {pb.tips?.length ? (
         <div>
