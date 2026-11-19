@@ -211,6 +211,8 @@ const en = {
   footerNote: 'We only link to pages that are already public. Removal depends on each site’s policies and is never guaranteed.',
   privacy: 'We store the address you scan and, if you sign in, your email. We never sell data or show ads.',
   operator: 'HomePrint is a service of High Point Perspective, a real estate media company.',
+  privacyLink: 'Privacy policy',
+  termsLink: 'Terms of service',
 };
 
 export type Strings = typeof en;
@@ -426,6 +428,8 @@ const es: Strings = {
   footerNote: 'Solo enlazamos páginas que ya son públicas. La eliminación depende de las políticas de cada sitio y nunca está garantizada.',
   privacy: 'Guardamos la dirección que escaneas y, si inicias sesión, tu correo. Nunca vendemos datos ni mostramos anuncios.',
   operator: 'HomePrint es un servicio de High Point Perspective, una empresa de medios inmobiliarios.',
+  privacyLink: 'Política de privacidad (en inglés)',
+  termsLink: 'Términos del servicio (en inglés)',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, es };
