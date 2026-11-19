@@ -5,7 +5,7 @@ import { ApiError, claims, type OpenFinding, type ReportView, type TaskStatus, t
 import { viewCache } from '@/lib/cache';
 import { errorText } from '@/lib/errors';
 import { go, href } from '@/lib/router';
-import { PLAYBOOKS, playbookFor, type Playbook } from '@engine/playbooks.ts';
+import { PLAYBOOKS, playbookFor, playbookName, type Playbook } from '@engine/playbooks.ts';
 import type { MediaType, SiteCategory } from '@engine/sites.ts';
 import PlaybookView from '@/components/PlaybookView';
 import type { AppCtx } from '@/App';
@@ -239,7 +239,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {['google', 'bing', 'streetview'].map((k) => (
             <button key={k} onClick={() => setDrawer({ pb: PLAYBOOKS[k] })} className="card text-left transition hover:border-sage-300">
-              <p className="font-semibold text-navy-900">{PLAYBOOKS[k].name}</p>
+              <p className="font-semibold text-navy-900">{playbookName(PLAYBOOKS[k], lang)}</p>
               <p className="mt-1 line-clamp-3 text-sm text-navy-500">{PLAYBOOKS[k].outcome[lang]}</p>
               <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-sage-700">{t.howToRemove}<ArrowRight className="h-4 w-4" /></span>
             </button>
@@ -510,7 +510,7 @@ function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, onUnlock }:
   drawer: Drawer; view: ReportView; onClose: () => void; onOwnerName: (n: string) => void;
   onSave?: (s: TaskStatus, note: string) => Promise<void>; onUnlock?: () => void;
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const f = drawer.finding;
   const [status, setStatus] = useState<TaskStatus>(f?.task?.status ?? 'todo');
   const [note, setNote] = useState(f?.task?.note ?? '');
@@ -527,7 +527,7 @@ function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, onUnlock }:
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-navy-400">{t.howToRemove}</p>
-            <h2 className="font-serif text-xl font-semibold text-navy-900">{f?.siteName ?? drawer.pb.name}</h2>
+            <h2 className="font-serif text-xl font-semibold text-navy-900">{f?.siteName ?? playbookName(drawer.pb, lang)}</h2>
             {f && <a href={f.url} target="_blank" rel="noopener noreferrer" className="link mt-1 flex max-w-full items-center gap-1 text-xs"><span className="truncate">{f.url}</span><ExternalLink className="h-3 w-3 shrink-0" /></a>}
           </div>
           <button onClick={onClose} aria-label={t.close} className="rounded-md p-1 text-navy-400 hover:bg-navy-50 hover:text-navy-700"><X className="h-5 w-5" /></button>
