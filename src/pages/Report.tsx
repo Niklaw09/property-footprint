@@ -64,7 +64,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   if (error) return <div className="mx-auto max-w-3xl px-5 py-16 text-center text-navy-600">{error}</div>;
   if (!view) return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-sage-600" /></div>;
 
-  const unlock = async () => {
+  const unlock = async (plan: 'quick' | 'monitor' = 'monitor') => {
     if (!ctx.user) { go({ name: 'signin', next: `#/r/${id}` }); return; }
     setBuying(true);
     setNotice(null);
@@ -76,7 +76,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         setBuying(false);
         return;
       }
-      const url = await ctx.api.checkout(view.id, lang);
+      const url = await ctx.api.checkout(view.id, lang, plan);
       if (url.startsWith('#')) { window.location.hash = url; await load(); setBuying(false); } else window.location.href = url;
     } catch (e) {
       setNotice(errorText(e, t));
@@ -86,8 +86,9 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   // Named sites first; within a group, exact matches before possible ones (the server already sorts by confidence).
   // Pages with no photos seen go last: there's less to remove there.
   const named = (f: ViewFinding) => (f.locked ? 1 : f.siteKey.startsWith('web:') ? 1 : 0);
-  const noPhotos = (f: ViewFinding) => (!f.locked && f.photos === 'none' ? 1 : 0);
-  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => noPhotos(a) - noPhotos(b) || named(a) - named(b)) })).filter((g) => g.items.length);
+  const noPhotos = (f: ViewFinding) => (f.photos === 'none' ? 1 : 0);
+  const hasPic = (f: ViewFinding) => (f.locked ? !!f.thumb : !!f.thumbnails[0]) ? 0 : 1;
+  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => noPhotos(a) - noPhotos(b) || named(a) - named(b) || hasPic(a) - hasPic(b)) })).filter((g) => g.items.length);
 
   const setTask = async (f: OpenFinding, status: TaskStatus, note?: string) => {
     await ctx.api.task(view.id, f.id, status, note ?? f.task?.note ?? '');
@@ -110,47 +111,63 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       {/* Summary */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm text-navy-500">{t.reportFor}</p>
-          <h1 className="mt-1 flex items-start gap-2 font-serif text-2xl font-semibold text-navy-900 sm:text-3xl"><MapPin className="mt-1.5 h-5 w-5 shrink-0 text-sage-600" />{view.display}</h1>
-          <p className="mt-1 text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="eyebrow">{t.reportFor}</p>
+          <h1 className="mt-2 flex items-start gap-2 font-display text-[clamp(1.5rem,6vw,2.1rem)] font-bold leading-tight text-navy-900"><MapPin className="mt-1 h-5 w-5 shrink-0 text-sage-600 sm:mt-2" />{view.display}</h1>
+          <p className="mt-1.5 font-mono text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
         </div>
-        <a href={href({ name: 'home' })} className="btn-secondary self-start md:self-auto">{t.scanAnother}</a>
+        <a href={href({ name: 'home' })} className="btn-secondary self-start py-2.5 sm:self-auto"><Search className="h-4 w-4" />{t.scanAnother}</a>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-[1.2fr_2fr]">
-        <div className="card flex flex-col justify-center">
-          <p className="font-serif text-5xl font-semibold text-navy-900">{view.counts.total}</p>
-          <p className="mt-1 text-sm text-navy-500">{t.sourcesFound}</p>
-          {view.unlocked && view.counts.total + view.counts.gone > 0 && (
-            <div className="mt-4">
-              <div className="h-2 overflow-hidden rounded-full bg-navy-50">
-                <div className="h-full rounded-full bg-sage-500 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
+      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-soft">
+        <div className="grid sm:grid-cols-[1fr_2fr]">
+          <div className="relative flex flex-col justify-center overflow-hidden bg-navy-900 p-5 text-white sm:p-6">
+            <div className="grid-bg absolute inset-0 opacity-40 invert" />
+            <p className="relative num text-6xl font-semibold leading-none tracking-tight">{view.counts.total}</p>
+            <p className="relative mt-2 text-sm text-navy-200">{t.sourcesFound}</p>
+            {view.unlocked && view.counts.total + view.counts.gone > 0 && (
+              <div className="relative mt-4">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-sage-400 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
+                </div>
+                <p className="mt-1.5 font-mono text-xs text-navy-300">{removedCount} / {open.length} {t.progressLabel}</p>
               </div>
-              <p className="mt-1 text-xs text-navy-500">{removedCount} / {open.length} {t.progressLabel}</p>
-            </div>
-          )}
-        </div>
-        <div className="card grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(['photos', 'tour', 'video', 'floorplan'] as MediaType[]).map((m) => {
-            const Icon = MEDIA_ICON[m];
-            return (
-              <div key={m}>
-                <Icon className="h-5 w-5 text-sage-600" />
-                <p className="mt-2 text-2xl font-semibold text-navy-900">{view.counts.byMedia[m] ?? 0}</p>
-                <p className="text-xs text-navy-500">{mediaLabel(m, t)}</p>
-              </div>
-            );
-          })}
+            )}
+          </div>
+          <div className="grid grid-cols-2 divide-navy-100 sm:grid-cols-4 sm:divide-x">
+            {(['photos', 'tour', 'video', 'floorplan'] as MediaType[]).map((m, i) => {
+              const Icon = MEDIA_ICON[m];
+              const n = view.counts.byMedia[m] ?? 0;
+              return (
+                <div key={m} className={`p-4 sm:p-5 ${i < 2 ? 'border-b border-navy-100 sm:border-b-0' : ''} ${i % 2 === 0 ? 'border-r border-navy-100 sm:border-r-0' : ''}`}>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${n ? 'bg-sage-50 text-sage-700' : 'bg-cream-100 text-navy-300'}`}><Icon className="h-4 w-4" /></span>
+                  <p className={`num mt-3 text-2xl font-semibold ${n ? 'text-navy-900' : 'text-navy-300'}`}>{n}</p>
+                  <p className="text-xs text-navy-500">{mediaLabel(m, t)}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {!view.unlocked && view.counts.total > 0 && (
-        <PriceCard view={view} signedIn={!!ctx.user} buying={buying} onUnlock={unlock} notice={notice} />
+        <PriceCard view={view} signedIn={!!ctx.user} buying={buying} onUnlock={(p) => unlock(p)} notice={notice} />
       )}
       {view.unlocked && view.paidUntil && (
-        <p className="mt-3 text-xs text-navy-500">{t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
+        <p className="mt-3 text-xs text-navy-500">{view.plan === 'quick' ? t.quickUntil : t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
+      )}
+      {view.unlocked && view.plan === 'quick' && view.upgradeCents != null && (
+        <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <div>
+            <h2 className="font-semibold text-navy-900">{t.upgradeTitle}</h2>
+            <p className="mt-1 text-sm text-navy-600">{t.upgradeBody.replace('{price}', money(view.upgradeCents))}</p>
+            {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+          </div>
+          <button onClick={() => unlock('monitor')} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
+            {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{t.upgradeCta.replace('{price}', money(view.upgradeCents))}
+          </button>
+        </div>
       )}
       {view.unlocked && view.review && <ReviewCard view={view} ctx={ctx} started={view.findings.some((f) => !f.locked && f.task && f.task.status !== 'todo')} />}
 
@@ -162,26 +179,13 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         </div>
       )}
 
-      {/* Start here */}
-      {view.counts.total > 0 && (
-        <div className="mt-8 rounded-xl bg-navy-800 p-5 text-white sm:flex sm:items-center sm:justify-between sm:gap-6">
-          <div>
-            <h2 className="font-serif text-lg font-semibold">{t.startHereTitle}</h2>
-            <p className="mt-1 text-sm text-navy-100">{t.startHereBody}</p>
-          </div>
-          <button onClick={() => setDrawer({ pb: PLAYBOOKS.mls })} className="mt-4 inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-medium text-navy-800 hover:bg-cream-100 sm:mt-0">
-            <Mail className="h-4 w-4" />{t.startHereCta}
-          </button>
-        </div>
-      )}
-
       {/* Findings */}
       {grouped.map(({ c, items }) => {
         // Agent sites can run to dozens of pages that all copy the MLS listing: show a few, explain the shortcut.
         const cap = c === 'brokerage' && items.length > COLLAPSE_AFTER && !showAll[c] ? COLLAPSE_AFTER : items.length;
         return (
         <section key={c} className="mt-10">
-          <h2 className="section-title">{catLabel(c, t)} <span className="ml-1 text-base font-normal text-navy-400">{items.length}</span></h2>
+          <h2 className="section-title">{catLabel(c, t)} <span className="num ml-1.5 rounded-md bg-navy-50 px-1.5 py-0.5 align-middle text-xs font-semibold text-navy-500">{items.length}</span></h2>
           {c === 'brokerage' && items.length > 3 && (
             <p className="mt-1 text-sm text-navy-500">
               {t.agentSitesNote}{' '}
@@ -190,7 +194,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
           )}
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {items.slice(0, cap).map((f) => f.locked
-              ? <LockedCard key={f.id} f={f} onUnlock={unlock} />
+              ? <LockedCard key={f.id} f={f} onUnlock={() => unlock()} />
               : <FindingCard key={f.id} f={f} member={view.unlocked} onRemove={() => setDrawer({ pb: playbookFor(f.coveredBy ?? f.playbook), finding: f })} onStatus={(s) => setTask(f, s)} />)}
           </div>
           {cap < items.length && (
@@ -201,6 +205,19 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         </section>
         );
       })}
+
+      {/* Did you start here? (the listing agent): a gentle shortcut, after the results */}
+      {view.counts.total > 0 && (
+        <section className="mt-10 card sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <div>
+            <h2 className="font-semibold text-navy-900">{t.startHereTitle}</h2>
+            <p className="mt-1 text-sm text-navy-500">{t.startHereBody}</p>
+          </div>
+          <button onClick={() => setDrawer({ pb: PLAYBOOKS.mls })} className="btn-secondary mt-4 shrink-0 py-2 sm:mt-0">
+            <Mail className="h-4 w-4" />{t.startHereCta}
+          </button>
+        </section>
+      )}
 
       {/* Quick checks */}
       {view.checks.length > 0 && (
@@ -230,8 +247,8 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         </div>
       </section>
 
-      {/* Monitoring */}
-      {view.unlocked && (
+      {/* Monitoring (12-month plan) */}
+      {view.unlocked && view.plan !== 'quick' && (
         <section className="mt-10 grid gap-3 md:grid-cols-2">
           <div className="card">
             <h2 className="flex items-center gap-2 font-semibold text-navy-900"><RefreshCw className="h-4 w-4 text-sage-600" />{t.monitorTitle}</h2>
@@ -277,6 +294,7 @@ function Evidence({ f }: { f: OpenFinding }) {
   const { t } = useLang();
   const parts: string[] = [];
   if (f.evidence.includes('portal_lookup')) parts.push(t.evLookup);
+  if (f.evidence.includes('same_listing_id')) parts.push(t.evSameListing);
   if (f.evidence.includes('street')) parts.push(t.evStreet);
   if (f.evidence.includes('unit')) parts.push(t.evUnit);
   if (f.evidence.includes('zip')) parts.push(t.evZip);
@@ -293,6 +311,7 @@ function Evidence({ f }: { f: OpenFinding }) {
 function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member: boolean; onRemove: () => void; onStatus: (s: TaskStatus) => void }) {
   const { t } = useLang();
   const done = f.task?.status === 'removed' || !!f.goneVerifiedAt;
+  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`card flex flex-col ${done ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-3">
@@ -308,9 +327,10 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
-        {f.thumbnails[0] && <img src={f.thumbnails[0]} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-14 w-20 shrink-0 rounded-md object-cover ring-1 ring-navy-100" />}
+        {f.thumbnails[0] && imgOk && <img src={f.thumbnails[0]} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-16 w-24 shrink-0 rounded-md object-cover ring-1 ring-navy-100" />}
       </div>
       {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
+      {f.snippet && <p className="mt-1 line-clamp-2 text-xs text-navy-500">{f.snippet}</p>}
       <div className="mt-2 flex flex-wrap gap-1">
         {f.media.filter((m) => m !== 'listing').map((m) => <span key={m} className="chip">{mediaLabel(m, t)}</span>)}
       </div>
@@ -335,32 +355,70 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
 
 const promoOpen = (view: ReportView) => !!view.promo && view.promo.left > 0 && !view.promo.usedByYou;
 
-function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: () => void; notice: string | null }) {
+const money = (cents: number) => `$${(cents / 100).toFixed(cents % 100 ? 2 : 0)}`;
+
+function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: (plan?: 'quick' | 'monitor') => void; notice: string | null }) {
   const { t, lang } = useLang();
-  const dollars = `$${(view.price.cents / 100).toFixed(view.price.cents % 100 ? 2 : 0)}`;
+  const dollars = money(view.prices.monitor);
+  const quick = money(view.prices.quick);
   const free = promoOpen(view);
   const n = (x: number) => x.toLocaleString(lang === 'es' ? 'es-US' : 'en-US');
-  return (
-    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
-      <div>
-        {free && (
+  if (free) {
+    return (
+      <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+        <div>
           <p className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-sage-600 px-2.5 py-0.5 text-xs font-semibold text-white">
             {t.promoBadge.replace('{left}', n(view.promo!.left)).replace('{total}', n(view.promo!.total))}
           </p>
-        )}
-        <h2 className="font-serif text-lg font-semibold text-navy-900">
-          {free ? <>{t.promoTitle} <span className="font-sans text-base font-normal text-navy-400 line-through">{dollars}</span></> : t.priceTitle.replace('{price}', dollars)}
-        </h2>
-        <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
-          {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
-        </ul>
-        <p className="mt-2 text-xs text-navy-500">{free ? t.promoNote.replace('{total}', n(view.promo!.total)) : t.priceNote}</p>
-        {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+          <h2 className="font-serif text-lg font-semibold text-navy-900">
+            {t.promoTitle} <span className="font-sans text-base font-normal text-navy-400 line-through">{dollars}</span>
+          </h2>
+          <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
+            {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <p className="mt-2 text-xs text-navy-500">{t.promoNote.replace('{total}', n(view.promo!.total))}</p>
+          {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
+        </div>
+        <button onClick={() => onUnlock()} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
+          {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
+          {signedIn ? t.promoCta : t.promoSignIn}
+        </button>
       </div>
-      <button onClick={onUnlock} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
-        {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
-        {free ? (signedIn ? t.promoCta : t.promoSignIn) : signedIn ? t.buyCta.replace('{price}', dollars) : t.signInToBuy}
-      </button>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5">
+      <h2 className="font-serif text-lg font-semibold text-navy-900">{t.plansTitle}</h2>
+      <p className="mt-1 text-sm text-navy-600">{t.plansIntro}</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col rounded-lg border border-navy-100 bg-white p-4">
+          <p className="font-semibold text-navy-900">{t.quickName}</p>
+          <p className="mt-1 text-2xl font-semibold text-navy-900">{quick}</p>
+          <ul className="mt-3 grid gap-1 text-sm text-navy-700">
+            {t.quickBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <p className="mt-3 text-xs text-navy-500">{t.quickNote.replace('{price}', quick)}</p>
+          <button onClick={() => onUnlock('quick')} disabled={buying} className="btn-secondary mt-auto w-full py-2">
+            {signedIn ? t.quickCta : t.signInToBuy}
+          </button>
+        </div>
+        <div className="flex flex-col rounded-lg border-2 border-sage-500 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-navy-900">{t.planName}</p>
+            <span className="rounded-full bg-sage-600 px-2 py-0.5 text-[11px] font-medium text-white">{t.planBadge}</span>
+          </div>
+          <p className="mt-1 text-2xl font-semibold text-navy-900">{dollars}</p>
+          <ul className="mt-3 grid gap-1 text-sm text-navy-700">
+            {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
+          </ul>
+          <button onClick={() => onUnlock('monitor')} disabled={buying} className="btn-primary mt-4 w-full">
+            {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
+            {signedIn ? t.planCta.replace('{price}', dollars) : t.signInToBuy}
+          </button>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-navy-500">{t.plansNote}</p>
+      {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
     </div>
   );
 }
@@ -423,16 +481,27 @@ function ReviewCard({ view, ctx, started }: { view: ReportView; ctx: AppCtx; sta
 
 function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>; onUnlock: () => void }) {
   const { t } = useLang();
+  const [imgOk, setImgOk] = useState(true);
   return (
-    <button onClick={onUnlock} className="card group flex flex-col border-dashed text-left transition hover:border-sage-300">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-navy-900">{f.siteName}</p>
-        <Lock className="h-4 w-4 text-navy-300 group-hover:text-sage-600" />
+    <button onClick={onUnlock} className="card group flex flex-col text-left transition hover:border-sage-300">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="font-semibold text-navy-900">{f.siteName}</p>
+            {f.photos === 'seen' && <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-medium text-navy-700">{t.photosSeen}</span>}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
+        </div>
+        {f.thumb && imgOk
+          ? <img src={f.thumb} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-16 w-24 shrink-0 rounded-md object-cover ring-1 ring-navy-100" />
+          : <Lock className="h-4 w-4 shrink-0 text-navy-300 group-hover:text-sage-600" />}
       </div>
+      {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
+      {f.snippet && <p className="mt-1 line-clamp-2 text-xs text-navy-500">{f.snippet}</p>}
       <div className="mt-2 flex flex-wrap gap-1">
         {f.media.filter((m) => m !== 'listing').map((m) => <span key={m} className="chip">{mediaLabel(m, t)}</span>)}
       </div>
-      <p className="mt-3 text-xs font-medium text-sage-700">{t.lockedTitle}</p>
+      <p className="mt-3 flex items-center gap-1.5 border-t border-navy-50 pt-3 text-xs font-medium text-sage-700"><Lock className="h-3.5 w-3.5" />{t.lockedTitle}</p>
     </button>
   );
 }
