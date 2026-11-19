@@ -1,0 +1,13 @@
+{
+  "projectId": "73041145",
+  "functions": {
+    "api": {
+      "hasChanged": false,
+      "hash": "46fdcf631f0d650fd0e773e78072b11f7ec2df728fae61869315852577dd24a2d777cf13385b5567281f48801095c8547c1c489b85e648035773ac1b4413b201"
+    },
+    "stripe-webhook": {
+      "hasChanged": false,
+      "hash": "d18ff5dd687a612e346eff98f69f44f6f9653c14f1a8b02ded881e620256c699d777cf13385b5567281f48801095c8547c1c489b85e648035773ac1b4413b201"
+    }
+  }
+}

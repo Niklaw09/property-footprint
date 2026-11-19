@@ -6,9 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { createService } from '../_shared/service.ts';
 import { parseSession, verifyStripeSignature } from '../_shared/stripe.ts';
-import { supabaseStore } from '../api/supabaseStore.ts';
-
-const env = (k: string) => Deno.env.get(k) ?? '';
+import { supabaseStore } from './supabaseStore.ts';const env = (k: string) => Deno.env.get(k) ?? '';
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
 const service = createService({ store: supabaseStore(db), engine: () => ({ provider: null }), priceCents: Number(env('PRICE_CENTS')) || 1999 });
 
@@ -32,3 +30,4 @@ Deno.serve(async (req) => {
   }
   return new Response(JSON.stringify({ received: true }), { headers: { 'Content-Type': 'application/json' } });
 });
+
