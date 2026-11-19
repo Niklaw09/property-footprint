@@ -190,7 +190,7 @@ const en = {
   demoBanner: 'Demo mode: showing a sample report from a real Austin home sold in 2026. Connect the backend to scan any address.',
   footerNote: 'We only link to pages that are already public. Removal depends on each site’s policies and is never guaranteed.',
   privacy: 'We store the address you scan and, if you sign in, your email. We never sell data or show ads.',
-  operator: 'HomePrint is a service of High Point Perspective.',
+  operator: 'HomePrint is a service of High Point Perspective, a real estate media company.',
 };
 
 export type Strings = typeof en;
@@ -385,7 +385,7 @@ const es: Strings = {
   demoBanner: 'Modo demo: mostrando un informe de ejemplo de una casa real de Austin vendida en 2026. Conecta el backend para escanear cualquier dirección.',
   footerNote: 'Solo enlazamos páginas que ya son públicas. La eliminación depende de las políticas de cada sitio y nunca está garantizada.',
   privacy: 'Guardamos la dirección que escaneas y, si inicias sesión, tu correo. Nunca vendemos datos ni mostramos anuncios.',
-  operator: 'HomePrint es un servicio de High Point Perspective.',
+  operator: 'HomePrint es un servicio de High Point Perspective, una empresa de medios inmobiliarios.',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, es };
