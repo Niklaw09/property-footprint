@@ -52,11 +52,30 @@ export function renderGoogleQuery(q: SearchQuery): string {
  * Level 1 drops site: and OR, keeping one quoted phrase. Level 2 also drops the quotes.
  * Results are still verified by strict address matching, so simpler queries only cost recall.
  */
+// Plain words that steer each simplified search toward the sites its full version targeted.
+const PLAIN_HINTS: Record<string, string> = {
+  portals: 'home for sale', brokerages: 'realtor listing', tours: 'virtual tour', video_social: 'video',
+  rentals: 'for rent', media_words: 'photos', zip: 'listing',
+};
+// Use the other spelling of the street ("Dr" vs "Drive") for some, so the simplified searches don't all repeat.
+const ALT_PHRASE = new Set(['zip', 'brokerages', 'tours']);
+
 export function simplifyQuery(q: SearchQuery, level: number): string {
   if (level <= 0) return renderGoogleQuery(q);
-  const phrase = q.phrases[0] ?? '';
+  const phrase = (ALT_PHRASE.has(q.label) ? q.phrases[1] : undefined) ?? q.phrases[0] ?? '';
   const main = level === 1 ? `"${phrase}"` : phrase;
-  return `${main} ${q.extra ?? ''}`.trim();
+  const extra = (q.extra ?? '').split('(')[0].replace(/"/g, '').trim(); // drop any OR group
+  return `${main} ${extra} ${PLAIN_HINTS[q.label] ?? ''}`.replace(/\s+/g, ' ').trim();
+}
+
+// Serper allows 5 requests per second per account. Space calls out across every scan running in this instance.
+let nextSlot = 0;
+const SERPER_GAP_MS = 250;
+async function serperSlot(): Promise<void> {
+  const now = Date.now();
+  const at = Math.max(now, nextSlot);
+  nextSlot = at + SERPER_GAP_MS;
+  if (at > now) await new Promise((r) => setTimeout(r, at - now));
 }
 
 const RESTRICTED = /not allowed for free accounts|query pattern not allowed/i;
@@ -67,8 +86,9 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
   // and don't pay twice for queries that collapse to the same text.
   let level = 0;
   const seen = new Map<string, Promise<any>>();
-  async function call(endpoint: string, text: string, num: number, signal?: AbortSignal): Promise<any> {
+  async function call(endpoint: string, text: string, num: number, signal?: AbortSignal, attempt = 0): Promise<any> {
     let res: Response;
+    await serperSlot();
     try {
       res = await fetchFn(`https://google.serper.dev/${endpoint}`, {
         method: 'POST',
@@ -78,6 +98,10 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
       });
     } catch (e) {
       throw new ProviderError('serper', (e as Error).name === 'AbortError' ? 'timeout' : 'network');
+    }
+    if (res.status === 429 && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      return call(endpoint, text, num, signal, attempt + 1);
     }
     if (!res.ok) {
       const err = classify('serper', res.status);
