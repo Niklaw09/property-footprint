@@ -27,6 +27,7 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
         <div className="mt-8">
           <p className="font-serif text-4xl font-semibold text-navy-900">{res.pct}%</p>
           <p className="text-sm text-navy-500">{res.found} of {res.expected} known pages found</p>
+          <p className="mt-1 text-sm text-navy-500">{res.exactPages} pages found with an exact address match{res.searchMode ? ` · searches: ${res.searchMode}` : ''}</p>
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-xs uppercase text-navy-400"><tr><th className="py-2 pr-3">Home</th><th className="pr-3">Known found</th><th className="pr-3">Total found</th><th className="pr-3">Zillow</th><th className="pr-3">Redfin</th><th>Search errors</th></tr></thead>

@@ -63,3 +63,20 @@ describe('matchAddress', () => {
     expect(streetPhrases(se)).toEqual(['89 Montgomery St SE', '89 Montgomery Street Southeast', '89 Montgomery St']);
   });
 });
+
+describe('other units in the same building', () => {
+  const a = parseAddress('2727 W 43rd St #402, Minneapolis, MN 55410');
+  it('rejects a different unit right after the street in a URL slug', () => {
+    expect(matchAddress(a, 'https://www.trulia.com/home/2727-w-43rd-st-408-minneapolis-mn-55410-445823750').level).toBe('none');
+  });
+  it('rejects a different unit named later in the text', () => {
+    expect(matchAddress(a, 'https://www.apartments.com/2727-w-43rd-st-minneapolis-mn-unit-304/z11b66x/').level).toBe('none');
+  });
+  it('keeps our own unit', () => {
+    expect(matchAddress(a, 'https://www.redfin.com/MN/Minneapolis/2727-W-43rd-St-55410/unit-402/home/49888403').level).toBe('exact');
+  });
+  it('marks a bare unit as needing a look when the user gave no unit', () => {
+    const b = parseAddress('2727 W 43rd St, Minneapolis, MN 55410');
+    expect(matchAddress(b, 'https://www.trulia.com/home/2727-w-43rd-st-408-minneapolis-mn-55410-445823750').level).toBe('likely');
+  });
+});

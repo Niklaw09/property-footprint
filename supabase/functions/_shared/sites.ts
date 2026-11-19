@@ -98,7 +98,7 @@ export const SITES: Site[] = [
 // (People-search sites expose names, not property media; they are a different product.)
 const IGNORED_DOMAINS = [
   'google.com', 'google.', 'bing.com', 'duckduckgo.com', 'yahoo.com', 'mapquest.com', 'apple.com', 'openstreetmap.org',
-  'ownerly.com', 'neighborwho.com', 'whitepages.com', 'spokeo.com', 'beenverified.com', 'truepeoplesearch.com',
+  'ownerly.com', 'neighborwho.com', 'countyoffice.org', 'propertyrecords.com', 'blockshopper.com', 'whitepages.com', 'spokeo.com', 'beenverified.com', 'truepeoplesearch.com',
   'fastpeoplesearch.com', 'radaris.com', 'peoplefinders.com', 'intelius.com', 'mylife.com', 'nuwber.com', 'clustrmaps.com',
   'usphonebook.com', 'thatsthem.com', 'searchpeoplefree.com', 'blockshopper.com', 'rehold.com', 'propertyshark.com',
   'ratemyagent.com', 'yelp.com', 'nextdoor.com', 'linkedin.com', 'wikipedia.org', 'greatschools.org', 'niche.com',
