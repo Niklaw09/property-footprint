@@ -30,6 +30,8 @@ export interface Api {
   /** Is "Continue with Google" turned on for this project? (Hidden until it is.) */
   googleEnabled(): Promise<boolean>;
   signInWithGoogle(nextHash: string): Promise<void>;
+  /** Sign in with the code from the sign-in email, without leaving the page. */
+  verifyEmailCode(email: string, code: string): Promise<void>;
   signOut(): Promise<void>;
 }
 
@@ -80,10 +82,14 @@ function liveApi(sb: SupabaseClient): Api {
       const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect } });
       if (error) throw new ApiError('auth_failed', error.message);
     },
+    async verifyEmailCode(email, code) {
+      const { error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+      if (error) throw new ApiError(/expired|invalid/i.test(error.message) ? 'bad_code' : 'auth_failed', error.message);
+    },
     async sendMagicLink(email, nextHash) {
       const redirect = `${window.location.origin}${window.location.pathname}?next=${encodeURIComponent(nextHash)}`;
       const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
-      if (error) throw new ApiError('auth_failed', error.message);
+      if (error) throw new ApiError(/rate limit|too many|security purposes/i.test(error.message) ? 'email_limit' : 'auth_failed', error.message);
     },
     async signOut() { await sb.auth.signOut(); },
   };

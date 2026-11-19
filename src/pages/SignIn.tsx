@@ -11,6 +11,8 @@ export default function SignIn({ ctx, next }: { ctx: AppCtx; next?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [google, setGoogle] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [code, setCode] = useState('');
+  const [checking, setChecking] = useState(false);
   const target = next && next.startsWith('#/') && !next.startsWith('#/signin') ? next : '#/homes';
 
   useEffect(() => {
@@ -34,16 +36,32 @@ export default function SignIn({ ctx, next }: { ctx: AppCtx; next?: string }) {
     }
   };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const send = async () => {
     setError(null);
     setState('sending');
     try {
       await ctx.api.sendMagicLink(email.trim(), target);
+      setCode('');
       setState('sent');
     } catch (err) {
       setError(errorText(err, t));
-      setState('idle');
+      setState(state === 'sent' ? 'sent' : 'idle');
+    }
+  };
+
+  const submit = (e: React.FormEvent) => { e.preventDefault(); void send(); };
+
+  const verify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setChecking(true);
+    try {
+      await ctx.api.verifyEmailCode(email.trim(), code.replace(/\D/g, ''));
+      // Signed in: the effect above takes them back to where they were.
+    } catch (err) {
+      setError(errorText(err, t));
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -51,11 +69,11 @@ export default function SignIn({ ctx, next }: { ctx: AppCtx; next?: string }) {
     <div className="mx-auto max-w-md px-5 py-16 sm:py-24">
       <div className="card p-6 sm:p-8">
         <h1 className="font-serif text-2xl font-semibold text-navy-900">{t.signInTitle}</h1>
-        <p className="mt-2 text-sm text-navy-500">{ctx.api.mode === 'demo' ? t.demoSignIn : google ? t.signInBodyGoogle : t.signInBody}</p>
+        {state !== 'sent' && <p className="mt-2 text-sm text-navy-500">{ctx.api.mode === 'demo' ? t.demoSignIn : google ? t.signInBodyGoogle : t.signInBody}</p>}
         {google && state !== 'sent' && (
           <>
-            <button type="button" onClick={withGoogle} disabled={leaving} className="btn-secondary mt-6 w-full">
-              {leaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleMark />}{t.googleSignIn}
+            <button type="button" onClick={withGoogle} disabled={leaving} className="btn-primary mt-6 w-full">
+              {leaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><GoogleMark /></span>}{t.googleSignIn}
             </button>
             <div className="mt-5 flex items-center gap-3 text-xs text-navy-400" aria-hidden="true">
               <span className="h-px flex-1 bg-navy-100" />{t.orEmail}<span className="h-px flex-1 bg-navy-100" />
@@ -63,13 +81,28 @@ export default function SignIn({ ctx, next }: { ctx: AppCtx; next?: string }) {
           </>
         )}
         {state === 'sent' ? (
-          <p className="mt-6 rounded-lg bg-sage-50 p-4 text-sm text-sage-800">{t.linkSent}</p>
+          <form onSubmit={verify} className="mt-4 space-y-3">
+            <p className="text-sm text-navy-600">{t.codeSent} <strong className="break-all text-navy-900">{email.trim() || 'demo@example.com'}</strong></p>
+            <label className="block text-sm font-medium text-navy-700">{t.codeLabel}
+              <input inputMode="numeric" autoComplete="one-time-code" autoFocus required={ctx.api.mode === 'live'} maxLength={10}
+                value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))}
+                className="input-field mt-1 text-center font-mono text-2xl tracking-[0.4em]" />
+            </label>
+            <button type="submit" disabled={checking} className="btn-primary w-full">
+              {checking && <Loader2 className="h-5 w-5 animate-spin" />}{t.codeSubmit}
+            </button>
+            <p className="text-xs text-navy-500">{t.codeHelp}</p>
+            <div className="flex flex-wrap justify-between gap-2 text-sm">
+              <button type="button" className="link" onClick={() => void send()}>{t.codeResend}</button>
+              <button type="button" className="link" onClick={() => { setState('idle'); setError(null); }}>{t.codeChangeEmail}</button>
+            </div>
+          </form>
         ) : (
           <form onSubmit={submit} className={`${google ? 'mt-4' : 'mt-6'} space-y-3`}>
             <label className="block text-sm font-medium text-navy-700">{t.emailLabel}
               <input type="email" required={ctx.api.mode === 'live'} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="input-field mt-1" />
             </label>
-            <button type="submit" disabled={state === 'sending'} className="btn-primary w-full">
+            <button type="submit" disabled={state === 'sending'} className={`${google ? 'btn-secondary' : 'btn-primary'} w-full`}>
               {state === 'sending' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mail className="h-5 w-5" />}{t.sendLink}
             </button>
           </form>
