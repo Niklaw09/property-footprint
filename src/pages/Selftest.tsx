@@ -23,7 +23,7 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="font-serif text-3xl font-semibold text-navy-900">Accuracy check</h1>
-      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 300 search credits; limited to 10 runs a day.</p>
+      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 300 search credits; limited to 30 runs a day with the test key.</p>
       <label className="mt-6 block max-w-sm text-sm font-medium text-navy-700">Test key <span className="font-normal text-navy-400">(SELFTEST_KEY in Bolt; remembered on this browser. Not needed if you're signed in.)</span>
         <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" className="input-field mt-1" />
       </label>
