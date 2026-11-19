@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
           secretKey: env('STRIPE_SECRET_KEY'),
           priceId: env('STRIPE_PRICE_ID') || undefined,
           amountCents: service.price.cents,
-          productName: `HomePrint: ${view.display} (12 months)`,
+          productName: `HomePrint by High Point Perspective: ${view.display} (12 months)`,
           successUrl: `${base}/?paid={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(`#/r/${reportId}`)}`,
           cancelUrl: back,
           userId: uid,
