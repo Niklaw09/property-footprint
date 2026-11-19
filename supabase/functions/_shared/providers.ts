@@ -78,13 +78,16 @@ export function simplifyQuery(q: SearchQuery, level: number): string {
   return `${main} ${extra} ${PLAIN_HINTS[q.label] ?? ''}`.replace(/\s+/g, ' ').trim();
 }
 
-// Serper allows 5 requests per second per account. Space calls out across every scan running in this instance.
+// Serper's free plan allows 5 requests per second; paid credit packs allow 50 or more. Space calls out across
+// every scan running in this instance: slowly until a full (paid-only) search has worked, then quickly.
+// A 429 still backs off and retries, so a lower real limit only costs time.
 let nextSlot = 0;
-const SERPER_GAP_MS = 220; // ~4.5 per second, under the limit of 5
-async function serperSlot(): Promise<void> {
+const SERPER_GAP_FREE_MS = 220; // ~4.5 per second, under the free limit of 5
+const SERPER_GAP_PAID_MS = 40; // 25 per second, half the smallest paid limit
+async function serperSlot(paid: boolean): Promise<void> {
   const now = Date.now();
   const at = Math.max(now, nextSlot);
-  nextSlot = at + SERPER_GAP_MS;
+  nextSlot = at + (paid ? SERPER_GAP_PAID_MS : SERPER_GAP_FREE_MS);
   if (at > now) await new Promise((r) => setTimeout(r, at - now));
 }
 
@@ -106,7 +109,7 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
   const seen = new Map<string, Promise<any>>();
   async function call(endpoint: string, text: string, num: number, page: number, signal?: AbortSignal, attempt = 0): Promise<any> {
     let res: Response;
-    await serperSlot();
+    await serperSlot(state.fullOk && state.level === 0);
     try {
       res = await fetchFn(`https://google.serper.dev/${endpoint}`, {
         method: 'POST',
@@ -115,7 +118,13 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
         signal,
       });
     } catch (e) {
+      if ((e as Error).name !== 'AbortError' && attempt < 1) return call(endpoint, text, num, page, signal, attempt + 1);
       throw new ProviderError('serper', (e as Error).name === 'AbortError' ? 'timeout' : 'network');
+    }
+    // One retry for a passing server error, so a single hiccup doesn't drop a whole search.
+    if (res.status >= 500 && attempt < 1) {
+      await new Promise((r) => setTimeout(r, 400));
+      return call(endpoint, text, num, page, signal, attempt + 1);
     }
     if (res.status === 429 && attempt < 2) {
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
@@ -278,7 +287,9 @@ export const redfinLookup: PortalLookup = {
   },
 };
 
-export const PORTAL_LOOKUPS: PortalLookup[] = [zillowLookup, redfinLookup];
+// Redfin's autocomplete refuses server requests (HTTP 403 from cloud IPs), and web search finds Redfin pages,
+// so only Zillow is looked up directly. redfinLookup stays available for local use.
+export const PORTAL_LOOKUPS: PortalLookup[] = [zillowLookup];
 
 /** Offline provider for demo mode and tests: returns canned results keyed by query label. */
 export function fixtureProvider(results: Record<string, Candidate[]>): SearchProvider {

@@ -255,6 +255,8 @@ export function createService(cfg: ServiceConfig) {
     const started = now().toISOString();
     const runId = await store.insertRun({ report_id: report.id, kind, started_at: started, status: 'running', found: 0, new_count: 0, gone_count: 0 });
     const result = await runScan(report.address, cfg.engine());
+    // Shows up in the function logs, e.g. "serper out of credits", so a problem is visible before users report it.
+    if (result.diagnostics.queryErrors.length) console.error('scan search errors', result.diagnostics.queryErrors.length, 'of', result.diagnostics.queries, JSON.stringify(result.diagnostics.queryErrors[0]));
     if (scanFailed(result)) {
       await store.updateRun(runId, { status: 'failed', finished_at: now().toISOString(), diagnostics: result.diagnostics });
       await store.updateReport(report.id, { last_status: report.last_scanned_at ? report.last_status : 'failed' });
@@ -273,16 +275,24 @@ export function createService(cfg: ServiceConfig) {
         first_seen_at: prev?.first_seen_at ?? started, last_seen_at: started, still_found: true, gone_verified_at: null,
       });
     }
+    // Pages this run didn't see. Search results vary a little from run to run, so a page only drops off the
+    // report when it's verifiably gone (404/410), or after it has been missed 3 runs in a row without proof
+    // that it's still live. Checks run in parallel so a re-scan stays fast.
     let goneCount = 0;
-    for (const prev of existing.values()) {
-      if (seen.has(prev.fid)) continue;
-      const row = { ...prev, still_found: false };
-      if (prev.still_found && cfg.verifyGone && !prev.gone_verified_at) {
-        const v = await cfg.verifyGone(prev.data.url).catch(() => 'unknown' as const);
-        if (v === 'gone') { row.gone_verified_at = started; goneCount++; }
-      }
+    const missing = [...existing.values()].filter((prev) => !seen.has(prev.fid));
+    const verdicts = await Promise.all(missing.map((prev) =>
+      prev.still_found && cfg.verifyGone && !prev.gone_verified_at
+        ? cfg.verifyGone(prev.data.url).catch(() => 'unknown' as const)
+        : Promise.resolve('skip' as const)));
+    missing.forEach((prev, i) => {
+      const v = verdicts[i];
+      const missed = (prev.data.missedRuns ?? 0) + 1;
+      const row = { ...prev, data: { ...prev.data, missedRuns: missed } };
+      if (v === 'gone') { row.still_found = false; row.gone_verified_at = started; goneCount++; }
+      else if (v === 'live') row.still_found = prev.still_found;
+      else row.still_found = prev.still_found && missed < 3;
       rows.push(row);
-    }
+    });
     // Preview: exactly one finding is open to anonymous visitors. Strongest evidence wins:
     // exact match, a portal lookup, the most media types.
     const candidates = rows.filter((r) => r.still_found && r.data.confidence === 'exact');

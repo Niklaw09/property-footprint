@@ -34,14 +34,14 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
           {res.origExpected != null && <p className="mt-1 text-xs text-navy-400">Original 43-page list: {res.origFound} of {res.origExpected} ({res.origPct}%)</p>}
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-navy-400"><tr><th className="py-2 pr-3">Home</th><th className="pr-3">Confirmed found</th><th className="pr-3">Total found</th><th className="pr-3">Zillow</th><th className="pr-3">Redfin</th><th>Search errors</th></tr></thead>
+              <thead className="text-xs uppercase text-navy-400"><tr><th className="py-2 pr-3">Home</th><th className="pr-3">Confirmed found</th><th className="pr-3">Total found</th><th className="pr-3">Zillow</th><th>Search errors</th></tr></thead>
               <tbody>
                 {res.rows.map((r) => (
                   <tr key={r.address} className="border-t border-navy-100 align-top">
                     <td className="py-2 pr-3 text-navy-800">{r.address}{r.missed.length > 0 && <details className="text-xs text-navy-400"><summary>missed {r.missed.length}</summary>{r.missed.map((m) => <div key={m} className="break-all">{m}</div>)}</details>}</td>
                     <td className="pr-3">{r.found}/{r.expected}</td>
                     <td className="pr-3">{r.total}{r.newExact ? <span className="block text-xs text-navy-400">{r.newExact} new</span> : null}</td>
-                    {['zillow', 'redfin'].map((k) => {
+                    {['zillow'].map((k) => {
                       const l = r.lookups.find((x) => x.key === k);
                       return <td key={k} className="pr-3">{l?.ok ? <span className="inline-flex items-center gap-1 text-sage-700"><CheckCircle2 className="h-4 w-4" />{l.found}</span> : <span className="inline-flex items-center gap-1 text-red-600"><XCircle className="h-4 w-4" />{l?.error ?? '—'}</span>}</td>;
                     })}

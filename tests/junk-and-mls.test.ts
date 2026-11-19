@@ -50,6 +50,21 @@ describe('junk from the Nov 19 run', () => {
     expect(f.find((x) => x.siteKey === 'instagram')!.confidence).toBe('exact');
   });
 
+  it('rejects the same number on the other side of the street (W vs E Tanglewood)', () => {
+    const a = parseAddress('4138 E Tanglewood Dr, Phoenix, AZ 85048');
+    const f = evaluate(a, [
+      c('https://www.zillow.com/homedetails/4138-W-Tanglewood-Dr-Phoenix-AZ-85048/444992159_zpid/', '4138 W Tanglewood Dr, Phoenix, AZ 85048', 'Nearby: 4138 E Tanglewood Dr, Phoenix, AZ 85048', 'search:portals'),
+      c('https://www.homes.com/property/4138-e-tanglewood-dr-phoenix-az/jd5grrbgts98p/', '4138 E Tanglewood Dr, Phoenix, AZ 85048', '', 'search:portals'),
+    ]);
+    expect(f.map((x) => x.domain)).toEqual(['homes.com']);
+  });
+
+  it('drops zip search pages, even when the zip looks like an id', () => {
+    const a = parseAddress('6413 York Bridge Cir, Austin, TX 78749');
+    expect(evaluate(a, [c('https://austin.towers.net/idx/zip/78749/?idx-q-ListingStatuses=3&idx-q-PropertyTypes0=35', 'Homes in 78749', '6413 York Bridge Cir, Austin, TX 78749')])).toHaveLength(0);
+    expect(evaluate(a, [c('https://agent.example.com/homes/78749/', 'Homes in 78749', '6413 York Bridge Cir, Austin, TX 78749')])).toHaveLength(0);
+  });
+
   it('drops other units when the slug names one and the snippet has the street', () => {
     const a = parseAddress('2727 W 43rd St #402, Minneapolis, MN 55410');
     const f = evaluate(a, [c('https://www.apartments.com/2727-w-43rd-st-minneapolis-mn-unit-304/z11b66x/', 'Apartment for rent', 'Located at 2727 W 43rd St, Minneapolis, MN 55410', 'search:rentals')]);

@@ -9,11 +9,12 @@ export default function Footer() {
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-5 py-8 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="flex items-center gap-2.5">
           <BrandMark className="h-7 w-7" />
-          <span className="font-serif text-sm font-semibold text-navy-800">{t.brand}</span>
+          <span className="font-serif text-sm font-semibold text-navy-800">{t.brand} <span className="font-sans text-xs font-normal text-navy-400">{t.byCompany}</span></span>
         </div>
         <div className="max-w-md space-y-1 text-xs leading-relaxed text-navy-400 sm:text-right">
           <p>{t.footerNote}</p>
           <p>{t.privacy}</p>
+          <p>{t.operator}</p>
           <p><a className="link" href={href({ name: 'guides' })}>{t.navGuides}</a></p>
         </div>
       </div>

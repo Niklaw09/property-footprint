@@ -2,6 +2,7 @@ export type Lang = 'en' | 'es';
 
 const en = {
   brand: 'HomePrint',
+  byCompany: 'by High Point Perspective',
   navGuides: 'Removal guides',
   navMyHomes: 'My homes',
   navSignIn: 'Sign in',
@@ -119,6 +120,8 @@ const en = {
   scanAnother: 'Scan another address',
   catPortal: 'Listing portals',
   catBrokerage: 'Agent and brokerage sites',
+  agentSitesNote: 'These sites copy the listing from the MLS. One request to the listing agent usually clears them all.',
+  showAllSites: 'Show all {n} sites',
   catTour: '3D and virtual tours',
   catProperty_site: 'Property websites',
   catVideo: 'Videos',
@@ -183,12 +186,14 @@ const en = {
   demoBanner: 'Demo mode: showing a sample report from a real Austin home sold in 2026. Connect the backend to scan any address.',
   footerNote: 'We only link to pages that are already public. Removal depends on each site’s policies and is never guaranteed.',
   privacy: 'We store the address you scan and, if you sign in, your email. We never sell data or show ads.',
+  operator: 'HomePrint is a service of High Point Perspective.',
 };
 
 export type Strings = typeof en;
 
 const es: Strings = {
   brand: 'HomePrint',
+  byCompany: 'de High Point Perspective',
   navGuides: 'Guías de eliminación',
   navMyHomes: 'Mis casas',
   navSignIn: 'Iniciar sesión',
@@ -306,6 +311,8 @@ const es: Strings = {
   scanAnother: 'Escanear otra dirección',
   catPortal: 'Portales de anuncios',
   catBrokerage: 'Sitios de agentes y corredurías',
+  agentSitesNote: 'Estos sitios copian el anuncio del MLS. Una sola solicitud al agente del anuncio suele quitarlos todos.',
+  showAllSites: 'Ver los {n} sitios',
   catTour: 'Recorridos 3D y virtuales',
   catProperty_site: 'Sitios web de la propiedad',
   catVideo: 'Videos',
@@ -370,6 +377,7 @@ const es: Strings = {
   demoBanner: 'Modo demo: mostrando un informe de ejemplo de una casa real de Austin vendida en 2026. Conecta el backend para escanear cualquier dirección.',
   footerNote: 'Solo enlazamos páginas que ya son públicas. La eliminación depende de las políticas de cada sitio y nunca está garantizada.',
   privacy: 'Guardamos la dirección que escaneas y, si inicias sesión, tu correo. Nunca vendemos datos ni mostramos anuncios.',
+  operator: 'HomePrint es un servicio de High Point Perspective.',
 };
 
 export const STRINGS: Record<Lang, Strings> = { en, es };

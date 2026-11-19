@@ -23,7 +23,7 @@ export function reviewEmail(i: ReviewEmailInput): { subject: string; text: strin
       ...(i.googleUrl ? [`O en Google: ${i.googleUrl}`] : []),
       'Seguiremos revisando tu casa automáticamente. Este es el único correo que te enviaremos sobre esto.',
       'Gracias,',
-      'HomePrint',
+      'HomePrint, un servicio de High Point Perspective',
     ]
     : [
       'Hi,',
@@ -33,7 +33,7 @@ export function reviewEmail(i: ReviewEmailInput): { subject: string; text: strin
       ...(i.googleUrl ? [`Or on Google: ${i.googleUrl}`] : []),
       'We’ll keep re-checking your home automatically. This is the only email we’ll send about this.',
       'Thanks,',
-      'HomePrint',
+      'HomePrint, a service of High Point Perspective',
     ];
   const text = lines.join('\n\n');
   const link = (url: string, label: string) => `<a href="${esc(url)}" style="color:#3f5f3a">${esc(label)}</a>`;
