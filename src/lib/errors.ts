@@ -20,7 +20,7 @@ export function errorText(e: unknown, t: Strings): string {
     case 'invalid_review': return t.errReview;
     case 'bad_code': return t.errCode;
     case 'email_limit': return t.errEmailLimit;
-    case 'forbidden': return e instanceof ApiError && e.detail === 'sign_in_required' ? t.errSignIn : t.errGeneric;
+    case 'forbidden': return e instanceof ApiError && e.detail === 'sign_in_required' ? t.errSignIn : e instanceof ApiError && e.detail === 'bad_key' ? 'That test key doesn’t match SELFTEST_KEY in Bolt.' : t.errGeneric;
     default: return t.errGeneric;
   }
 }
