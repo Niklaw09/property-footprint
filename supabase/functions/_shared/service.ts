@@ -199,7 +199,7 @@ export function createService(cfg: ServiceConfig) {
     anyPerIpPer10Min: 30, perIpPer10Min: 6, anonPerIpPerDay: 3, userPerDay: 10, maxHomesPerUser: 25,
     perDay: 300, reuseHours: 24, manualRescanHours: 12, manualRescansPer30Days: 2, ...cfg.limits,
   };
-  const price = { cents: cfg.priceCents ?? 2900, currency: 'usd' };
+  const price = { cents: cfg.priceCents ?? 1999, currency: 'usd' };
   const isActive = (e: EntitlementRow | null) => !!e && new Date(e.paid_until).getTime() > now().getTime();
   async function unlockedFor(userId: string | null, reportId: string): Promise<EntitlementRow | null> {
     if (!userId) return null;

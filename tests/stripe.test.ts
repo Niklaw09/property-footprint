@@ -12,14 +12,14 @@ it('verifies Stripe webhook signatures and rejects tampering or stale events', a
   expect(await verifyStripeSignature(body, null, 'whsec_test')).toBe(false);
 });
 
-it('creates a $29 checkout with the report in metadata', async () => {
+it('creates a $19.99 checkout with the report in metadata', async () => {
   let sent = '';
   const fake = (async (_u: string, init?: RequestInit) => { sent = String(init?.body); return new Response(JSON.stringify({ id: 'cs_1', url: 'https://checkout.stripe.com/x' })); }) as any;
-  const r = await createCheckoutSession({ secretKey: 'sk', amountCents: 2900, productName: 'P', successUrl: 's', cancelUrl: 'c', userId: 'u', reportId: 'r' }, fake);
+  const r = await createCheckoutSession({ secretKey: 'sk', amountCents: 1999, productName: 'P', successUrl: 's', cancelUrl: 'c', userId: 'u', reportId: 'r' }, fake);
   expect(r.url).toContain('checkout.stripe.com');
   const p = new URLSearchParams(sent);
-  expect(p.get('line_items[0][price_data][unit_amount]')).toBe('2900');
+  expect(p.get('line_items[0][price_data][unit_amount]')).toBe('1999');
   expect(p.get('metadata[report_id]')).toBe('r');
   expect(p.get('mode')).toBe('payment');
-  expect(parseSession({ id: 'cs_1', payment_status: 'paid', metadata: { user_id: 'u', report_id: 'r' }, amount_total: 2900 })).toMatchObject({ paid: true, userId: 'u', reportId: 'r' });
+  expect(parseSession({ id: 'cs_1', payment_status: 'paid', metadata: { user_id: 'u', report_id: 'r' }, amount_total: 1999 })).toMatchObject({ paid: true, userId: 'u', reportId: 'r' });
 });

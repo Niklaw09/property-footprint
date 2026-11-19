@@ -47,11 +47,11 @@ describe('service', () => {
     expect(saved.member).toBe(true);
     expect(saved.unlocked).toBe(false);
     expect(saved.findings.filter((f) => !f.locked)).toHaveLength(1);
-    expect(saved.price).toEqual({ cents: 2900, currency: 'usd' });
+    expect(saved.price).toEqual({ cents: 1999, currency: 'usd' });
     const other = await svc.getReport({ reportId: view.id, userId: 'u2', claimToken });
     expect(other.member).toBe(false);
-    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 2900 })).toBe(true);
-    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 2900 })).toBe(false); // webhook retry
+    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 1999 })).toBe(true);
+    expect(await svc.grantPurchase({ userId: 'u1', reportId: view.id, sessionId: 'cs_1', amountCents: 1999 })).toBe(false); // webhook retry
     const full = await svc.getReport({ reportId: view.id, userId: 'u1' });
     expect(full.unlocked).toBe(true);
     expect(full.findings.every((f) => !f.locked)).toBe(true);
@@ -108,7 +108,7 @@ describe('service', () => {
   it('tracks tasks, re-checks twice a month, limits manual re-scans and verifies removals', async () => {
     const { svc, advance, setGone } = setup();
     const { view: v0 } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
-    await svc.grantPurchase({ userId: 'u1', reportId: v0.id, sessionId: 'cs_2', amountCents: 2900 });
+    await svc.grantPurchase({ userId: 'u1', reportId: v0.id, sessionId: 'cs_2', amountCents: 1999 });
     const view = await svc.getReport({ reportId: v0.id, userId: 'u1' });
     const estately = view.findings.find((f) => !f.locked && f.siteKey === 'estately')!;
     await svc.updateTask({ userId: 'u1', reportId: view.id, fid: estately.id, status: 'sent' });

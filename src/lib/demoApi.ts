@@ -64,9 +64,9 @@ export function demoApi(): Api {
     mine: () => wrap(() => svc.myReports(uid()!)),
     async selftest() { throw new ApiError('not_configured'); },
     async checkout(id) {
-      // Demo: pretend the $29 payment succeeded.
+      // Demo: pretend the $19.99 payment succeeded.
       await delay(600);
-      await wrap(() => svc.grantPurchase({ userId: uid()!, reportId: id, sessionId: `demo_${id}`, amountCents: 2900 }));
+      await wrap(() => svc.grantPurchase({ userId: uid()!, reportId: id, sessionId: `demo_${id}`, amountCents: 1999 }));
       return `#/r/${id}`;
     },
     async confirm() { return { ok: true }; },

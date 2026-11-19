@@ -10,7 +10,7 @@ import { supabaseStore } from '../api/supabaseStore.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const db = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } });
-const service = createService({ store: supabaseStore(db), engine: () => ({ provider: null }), priceCents: Number(env('PRICE_CENTS')) || 2900 });
+const service = createService({ store: supabaseStore(db), engine: () => ({ provider: null }), priceCents: Number(env('PRICE_CENTS')) || 1999 });
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });

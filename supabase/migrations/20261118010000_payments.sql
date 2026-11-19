@@ -1,4 +1,4 @@
--- $29 per home: a paid entitlement unlocks the full report, tracking and twice-monthly re-checks for 12 months.
+-- $19.99 per home: a paid entitlement unlocks the full report, tracking and twice-monthly re-checks for 12 months.
 create table public.entitlements (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,

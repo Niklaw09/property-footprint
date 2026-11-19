@@ -32,7 +32,7 @@ const service = createService({
   verifyGone: httpVerifier(),
   limits: { perDay: Number(env('SCAN_DAILY_LIMIT')) || 300 },
   ipSalt: env('IP_HASH_SALT') || env('CRON_SECRET'),
-  priceCents: Number(env('PRICE_CENTS')) || 2900,
+  priceCents: Number(env('PRICE_CENTS')) || 1999,
 });
 
 function json(body: unknown, status = 200): Response {
