@@ -225,7 +225,7 @@ async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T
 export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResult> {
   const started = Date.now();
   const fetchFn = opts.fetchFn ?? fetch;
-  const timeoutMs = opts.timeoutMs ?? 9000;
+  const timeoutMs = opts.timeoutMs ?? 20000; // includes waiting for a slot under the search provider's rate limit
   const candidates: Candidate[] = [];
   const diagnostics: ScanDiagnostics = {
     provider: opts.provider?.name ?? 'none', queries: 0, queryErrors: [], lookups: [], candidates: 0, rejected: {}, durationMs: 0,

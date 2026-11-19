@@ -117,6 +117,8 @@ export interface SelftestRow {
   queryErrors: number;
   /** First search error, e.g. "auth: HTTP 403 Unauthorized", to diagnose failed searches. */
   firstError?: string;
+  /** Results that aren't in the known list, as "confidence | found via | url", to spot junk or new real pages. */
+  extras: string[];
   ms: number;
 }
 
@@ -134,9 +136,15 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
         return got.includes(pathKey(u));
       };
       const missed = h.expect.filter((u) => !hit(u));
+      const known = new Set(h.expect.map(pathKey));
+      const knownZ = new Set(h.expect.map((u) => u.match(/(\d+)_zpid/)?.[1]).filter(Boolean));
+      const extras = r.findings
+        .filter((f) => !known.has(pathKey(f.url)) && !knownZ.has(f.url.match(/(\d+)_zpid/)?.[1]))
+        .map((f) => `${f.confidence} | ${f.foundVia?.[0] ?? ''} | ${f.url}`)
+        .slice(0, 60);
       rows.push({
         address: h.address, expected: h.expect.length, found: h.expect.length - missed.length, missed, total: r.findings.length,
-        lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
+        extras, lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
         firstError: r.diagnostics.queryErrors[0] ? `${r.diagnostics.queryErrors[0].code}: ${r.diagnostics.queryErrors[0].detail ?? ''}`.trim() : undefined,
       });
     }
