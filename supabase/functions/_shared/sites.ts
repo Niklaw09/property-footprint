@@ -143,7 +143,7 @@ export function unknownSite(url: string): Site {
 }
 
 // Area pages that list many homes, on any site: neighborhoods, communities, subdivisions, points of interest, schools.
-const AREA_PAGE = /\/(neighbou?rhoods?|communit(y|ies)|subdivisions?|points-of-interest|schools?|market-(report|trends))(\/|$)/i;
+const AREA_PAGE = /\/(neighbou?rhoods?|communit(y|ies)|subdivisions?|points-of-interest|schools?|market-(report|trends)|zip|zipcodes?|county|counties)(\/|$)/i;
 
 export function isDetailPage(site: Site, url: string): boolean {
   try {
@@ -190,7 +190,7 @@ export const SEARCH_GROUPS: { label: string; domains: string[] }[] = [
  * (5+ digits, or letters followed by 6+ digits like an MLS number "TB8543033").
  * Used for agent sites we have no rules for, where a page about a neighborhood can mention our address in passing.
  */
-export function urlNamesProperty(url: string, houseNumber: string): boolean {
+export function urlNamesProperty(url: string, houseNumber: string, zip?: string): boolean {
   let path = '';
   try {
     const u = new URL(url);
@@ -201,7 +201,7 @@ export function urlNamesProperty(url: string, houseNumber: string): boolean {
   const toks = path.split(/[^a-z0-9]+/).filter(Boolean);
   const num = houseNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (num && toks.includes(num)) return true;
-  return toks.some((t) => /^\d{5,}$/.test(t) || /^[a-z]{1,6}\d{6,}[a-z]?$/.test(t) || /^[a-z0-9]{10,}$/.test(t) && /\d/.test(t) && /[a-z]/.test(t));
+  return toks.some((t) => (/^\d{5,}$/.test(t) && t !== zip) || /^[a-z]{1,6}\d{6,}[a-z]?$/.test(t) || /^[a-z0-9]{10,}$/.test(t) && /\d/.test(t) && /[a-z]/.test(t));
 }
 
 /** Sites whose pages need the URL itself to point at one property (see urlNamesProperty). */

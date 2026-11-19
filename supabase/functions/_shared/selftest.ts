@@ -1,6 +1,6 @@
 // Built-in accuracy self-test: scans 10 real homes sold in fall 2026 and reports how many of their known pages were found.
 // `expect` is the original hand-collected list. `confirmed` adds the pages a live run found with an exact address
-// match and that were checked by hand on Nov 19, 2026 (junk, other homes and unverifiable social posts left out).
+// match and that were checked by hand after the two Nov 19, 2026 runs (junk, other homes and unverifiable social posts left out).
 // Together they are the page list the headline score is measured against. Add new real pages here after each run.
 import { parseAddress } from './address.ts';
 import { runScan, type EngineOptions } from './engine.ts';
@@ -34,7 +34,14 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.loriharingrealty.com/listings/details/14425-american-kestrel-dr-austin-tx/5322164/7616927/",
       "https://www.texasrealestatesource.com/listing/austin-tx/78738/14425-american-kestrel-dr/44-1803523164/",
       "https://treaustin.com/listing/14425-american-kestrel-dr-austin-tx-78738/ACT241393104",
-      "https://www.urbanspacerealtors.com/homes/14425-american-kestrel-dr-austin-tx-78738-c7191bdfe50b49b931f414abffc8df4c/"
+      "https://www.urbanspacerealtors.com/homes/14425-american-kestrel-dr-austin-tx-78738-c7191bdfe50b49b931f414abffc8df4c/",
+      "https://www.trulia.com/home/14425-american-kestrel-dr-austin-tx-78738-70333738",
+      "https://www.movoto.com/austin-tx/14425-american-kestrel-dr-austin-tx-78738/pid_1zr3bh54nh/",
+      "https://www.coldwellbankerhomes.com/tx/austin/14425-american-kestrel-dr/pid_72769822/",
+      "https://www.sothebysrealty.com/eng/sales/detail/721-l-1602-3777682/14425-american-kestrel-drive-austin-tx-78738",
+      "https://www.exprealty.com/austin-tx-real-estate/spillman-ranch-ph-01-sec-01/14425-american-kestrel-dr?listingId=88103891",
+      "https://www.atproperties.com/6626168/14425-american-kestrel-dr-austin-texas-78738-unlockmls",
+      "https://www.realtyaustin.com/14425-american-kestrel-dr-austin-tx-78738-4859103.html"
     ]
   },
   {
@@ -58,7 +65,14 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://dukesresidential.com/listing/actris/4191638/Austin/6413-York-Bridge-Circle/",
       "https://easylivingaustin.com/listings/6413-york-bridge-circle-austin-tx-78749-1",
       "https://landyfrostgroup.com/listing/actris/4191638/Austin/6413-York-Bridge-Circle/",
-      "https://www.spyglassrealty.com/listing/4191638-6413-york-bridge-circle-austin-tx-78749"
+      "https://www.spyglassrealty.com/listing/4191638-6413-york-bridge-circle-austin-tx-78749",
+      "https://www.sothebysrealty.com/kuper/eng/sales/detail/721-l-1602-4191638/6413-york-bridge-circle-circle-c-ranch-austin-tx-78749",
+      "https://www.era.com/property/detail/tx/austin/6413-york-bridge-cir/lid-P00800000HG2LeoTB2cavrFQMQyVeDhwFwPh6Qo2",
+      "https://darinwalkeraustin.com/home-search/listings/3081259633693926748-6413-York-Bridge-CIR",
+      "https://www.rmcapitalcity.com/p/6413-York-Bridge-Cir-Austin-TX-78749/dmgid_190043928",
+      "https://www.search.unlockmls.com/address/6413-York-Bridge-Cir-Austin-TX-78749/7982681",
+      "https://www.urbanspacerealtors.com/homes/6413-york-bridge-cir-austin-tx-78749-3ac9da55db699dd95ad7e9b40f39ef77/",
+      "https://vinceyoungrealty.com/listing/6413-york-bridge-cir-austin-tx-78749/ACT248488171"
     ]
   },
   {
@@ -102,7 +116,13 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.terravistarealty.com/uid/9828-Starwood-Drive/Charlotte/NC/28215/1003693384",
       "https://www.terravistarealty.com/tvid-property-details.cfm?TVID=1003693144",
       "https://hotpads.com/9828-starwood-dr-charlotte-nc-28215-1js84se/pad",
-      "https://www.apartments.com/9828-starwood-dr-charlotte-nc/lqnzc9f/"
+      "https://www.apartments.com/9828-starwood-dr-charlotte-nc/lqnzc9f/",
+      "https://www.highgarden-charlotte.com/9828-Starwood-Dr-Charlotte-NC-28215/mls4418077",
+      "https://www.housesincharlotte.com/property-search/detail/93/4418077/9828-starwood-dr-charlotte-nc-28215/",
+      "https://www.land.com/property/9828-starwood-drive-charlotte-north-carolina-28215/28577070/",
+      "https://www.premiersothebysrealty.com/single-family/clm/car4418077/9828-starwood-drive-charlotte-nc-28215",
+      "https://www.tmrrealtyinc.com/listings/246370668/9828+Starwood+Drive%2C+Charlotte%2C+NC+28215/",
+      "https://www.viewcarolinahomes.com/info/9828Starwood-Drive/Charlotte/NC/28215/mls/4418077"
     ]
   },
   {
@@ -127,7 +147,13 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://kennarealestate.com/home/5062-perth-st-denver-co-80249-a6a9e6ab",
       "https://klester.smartdenverhomesearch.com/property/5062-perth-st-denver-co-80249/pid-1806479401/?src=2",
       "https://rachelgallegos.com/home-search/listings/7984276563312026417-5062-Perth-Street",
-      "https://www.facebook.com/kathi.farrellweaver/posts/j-u-s-t-l-i-s-t-e-d5062-perth-street-denver-co-802494-beds-3-baths-1942-sf-450kt/10235918946977179/"
+      "https://www.facebook.com/kathi.farrellweaver/posts/j-u-s-t-l-i-s-t-e-d5062-perth-street-denver-co-802494-beds-3-baths-1942-sf-450kt/10235918946977179/",
+      "https://www.andrewmacarthur.com/property/6-6283032-5062-perth-street-denver-CO-80249",
+      "https://accessionre.com/home/5062-perth-st-denver-co-80249-a6a9e6ab",
+      "https://becciconnects.com/property-search/listings/detail/5062-perth-street-denver-co-80249-6283032/",
+      "https://www.corcoran.com/listing/for-sale/5062-perth-street-denver-co-80249/109321660/regionId/109",
+      "https://www.prevu.com/listings/5062-perth-street-denver-co-80249-pidbe8d97a5",
+      "https://www.propertycrushers.com/property-search/detail/60/6283032/5062-perth-st-denver-co-80249/"
     ]
   },
   {
@@ -151,7 +177,12 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.realpha.com/property/14732-san-marsala-court-tampa-fl-33626/7091854136638759705",
       "https://siftargroup.com/properties/14732-san-marsala-ct-tampa-fl-us-33626-mfrtb8543033",
       "https://singingrealtortampa.com/listing-detail/1188295991/14732-SAN-MARSALA-CT-Tampa-FL",
-      "https://www.soldtheneighborhood.com/property/TB8543033/"
+      "https://www.soldtheneighborhood.com/property/TB8543033/",
+      "https://www.trulia.com/home/14732-san-marsala-ct-tampa-fl-33626-66717357",
+      "https://www.remax.com/luxury/fl/tampa/home-details/14732-san-marsala-ct-tampa-fl-33626/293254077520120234/M00000146/TB8543033",
+      "https://www.casabellaelite.com/property/24-TB8543033-14732-San-Marsala-Court-Tampa-FL-33626",
+      "https://www.tahirahcreatingwealth.com/search/florida/tampa/waterchase-ph-2/14732-san-marsala-court-bid-30-TB8543033",
+      "https://www.facebook.com/amanda.siftar/posts/sold-in-waterchase-14732-san-marsala-court-33626some-transactions-are-a-pleasure/10235755789937205/"
     ]
   },
   {
@@ -174,7 +205,19 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.nashvillehomeviewer.com/homes-for-sale-sold-details/312-PARMLEY-LN-NASHVILLE-TN-37207/3246933/61/",
       "https://www.nashvillesmls.com/listing/3602048-312-parmley-ln-nashville-tn-37207/",
       "https://onwardre.com/home-search/listings/4324745903676553011-312-Parmley-Ln",
-      "https://sherryerickson.com/listing-detail/1190000244/312-Parmley-Ln-Nashville-TN/"
+      "https://sherryerickson.com/listing-detail/1190000244/312-Parmley-Ln-Nashville-TN/",
+      "https://www.homes.com/property/312-parmley-ln-nashville-tn/420rk7eepbtv4/",
+      "https://www.era.com/property/detail/tn/nashville/312-parmley-ln/lid-P00800000HI3vjK5Sek2gpyNAGB7JUVtHZS7F86v",
+      "https://www.exprealty.com/nashville-tn-real-estate/parmley-cove/312-parmley-ln",
+      "https://www.woodmontrealty.com/property/12-3246933-312-parmley-ln-nashville-TN-37207",
+      "https://angelapeach.com/home-search/listings/4324745903676553011-312-Parmley-Ln",
+      "https://www.crye-leike.com/p/312-Parmley-Ln-Nashville-TN-37207/dmgid_189799850",
+      "https://www.impactrealtytn.com/real-estate/312-parmley-ln-nashville-tn-37207/3602048/203983042",
+      "https://www.realestatewins.net/newlisting/3602048/312-Parmley-Ln-Nashville-TN-37207",
+      "https://www.realtysavingsllc.com/idx/listing/TN-REALTRACS/3602048/312-Parmley-Ln-Nashville-TN-37207",
+      "https://risenashville.group/listing-detail/1190000244/312-Parmley-Ln-Nashville-TN",
+      "https://www.tnrealestate.com/property-search/detail/38/3602048/312-parmley-ln-nashville-tn-37207/",
+      "https://townecreekrealty.com/idx/mls-3602048-312_parmley_ln_nashville_tn_37207"
     ]
   },
   {
@@ -193,7 +236,22 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://laurenrosehomes.com/homes/3114-se-lincoln-st-portland",
       "https://www.realtyofamerica.com/detail/OR/Portland/3114-Se-LINCOLN-St/59ee9f49-1859-45f0-b3c4-fafda95f6aea",
       "https://www.realtyportland.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/",
-      "https://www.weknowportland.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/"
+      "https://www.weknowportland.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/",
+      "https://www.movoto.com/portland-or/3114-se-lincoln-st-portland-or-97214/pid_987bs1oilh/",
+      "https://www.bhhs.com/homes-for-sale/or/3114-se-lincoln-st-portland-97214/pid-436647702",
+      "https://www.exprealty.com/portland-or-real-estate/3114-se-lincoln-st",
+      "https://listings.thekellygroup.com/idx/details/listing/b001/131894435",
+      "https://www.goldnationequitygroup.com/property/65-131894435-3114-Se-Lincoln-St-Portland-OR-97214",
+      "https://memeloggins.com/sold-listing/detail/1198764936/3114-SE-LINCOLN-ST-Portland-OR",
+      "https://www.bhhsnw.com/realestate/details/130951537/3114-se-lincoln-st-portland-or-97214",
+      "https://eugenespotlights.com/property/65-131894435-3114-Se-Lincoln-St-Portland-OR-97214/",
+      "https://listings.becu.org/realestate/details/130951537/3114-se-lincoln-street-portland-or-97214",
+      "https://www.pnwrealrealty.com/listing-detail/1186837487/3114-SE-LINCOLN-ST-Portland-OR",
+      "https://www.portlandluxuryrealestate.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/",
+      "https://www.portlandrealestate.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/",
+      "https://sondernw.com/sold-listing/detail/1198764936/3114-SE-LINCOLN-ST-Portland-OR",
+      "https://thisisfort.com/listing-detail/1186837487/3114-SE-LINCOLN-ST-Portland-OR",
+      "https://www.windermere.com/listing/OR/Portland/3114-SE-Lincoln-St-97214/231341126"
     ]
   },
   {
@@ -215,7 +273,23 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://www.omegahome.com/idx/listing/GeorgiaMLS/10825102/89-montgomery-st-se-georgiamls-10825102/",
       "https://pamsantoro.bhhsgeorgia.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721",
       "https://www.sixbricksrealty.com/sold-listing/detail/1198833115/89-Montgomery-ST-SE-Atlanta-GA",
-      "https://summitatgateway.harrynorman.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721"
+      "https://summitatgateway.harrynorman.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721",
+      "https://www.homes.com/property/89-montgomery-st-se-atlanta-ga/7jm1fsgpjvt5s/",
+      "https://www.movoto.com/atlanta-ga/89-montgomery-st-se-atlanta-ga-30317/pid_l4xffhvlbh/active/",
+      "https://www.estately.com/listings/info/89-montgomery-street-se-atlanta-ga-30317--2",
+      "https://www.exprealty.com/atlanta-ga-real-estate/edgewood/89-montgomery-st-se",
+      "https://www.archerhometeam.com/property/86-10825102-89-montgomery-street-se-atlanta-GA-30317",
+      "https://www.metroatlantahomesales.com/property/86-10825102-89-montgomery-street-se-atlanta-GA-30317",
+      "https://www.bktgeorgia.com/search/georgia/atlanta/edgewood/89-montgomery-st-se-bid-22-10825102",
+      "https://www.georgiamls.com/89-montgomery-street-se-atlanta-ga-30317/10825102",
+      "https://www.hankbailey.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/5738685",
+      "https://www.harrynorman.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317",
+      "https://jeanineblumer.bhhsgeorgia.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10825102",
+      "https://lizperez.harrynorman.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/5738685",
+      "https://www.realestateofatlanta.com/property/86-10825102-89-montgomery-street-se-atlanta-GA-30317",
+      "https://www.realpha.com/property/89-montgomery-st-se-atlanta-ga-30317/9039644002207028124",
+      "https://www.realtracs.com/listings/7467611/address/89-montgomery-street-se-atlanta-ga-30317",
+      "https://www.seaglass.com/property/89-montgomery-st-se-atlanta-ga-30317/430756/"
     ]
   },
   {
@@ -223,6 +297,13 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
     "expect": [
       "https://www.redfin.com/MN/Minneapolis/2727-W-43rd-St-55410/unit-402/home/49888403",
       "https://www.zillow.com/homedetails/445846157_zpid/"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/2727-W-43rd-St-Apt-402_Minneapolis_MN_55410_M78814-86194",
+      "https://www.movoto.com/minneapolis-mn/2727-w-43rd-st-402-minneapolis-mn-55410/pid_awjggg2jgh/",
+      "https://www.coldwellbankerhomes.com/mn/minneapolis/2727-w-43rd-st-402/pid_74142023/",
+      "https://www.exitnorthstarrealty.com/sold-listing/detail/1068755727/2727-W-43rd-ST-402-Minneapolis-MN",
+      "https://fergusonrealty.net/sold-listing/detail/1200031527/2727-W-43rd-ST-402-Minneapolis-MN"
     ]
   }
 ];

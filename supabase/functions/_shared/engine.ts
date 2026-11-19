@@ -1,6 +1,6 @@
 // The finding engine: portal lookups + web/image/video search -> deterministic address matching -> findings.
 
-import { type Address, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
+import { type Address, DIRECTIONS, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
 import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
 import { SITES, SEARCH_GROUPS, LONGTAIL_EXCLUDE, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, needsPropertyUrl, siteFor, unknownSite, urlNamesProperty } from './sites.ts';
 
@@ -115,7 +115,7 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
     const isLookup = c.via.startsWith('lookup:');
     if (!isLookup && !isDetailPage(site, c.url)) { bump('not_a_property_page'); continue; }
     // Agent sites we have no rules for: the URL must point at one property, not an area page that mentions ours.
-    if (!isLookup && needsPropertyUrl(site) && !urlNamesProperty(c.url, a.number)) { bump('not_a_property_page'); continue; }
+    if (!isLookup && needsPropertyUrl(site) && !urlNamesProperty(c.url, a.number, a.zip)) { bump('not_a_property_page'); continue; }
 
     // Match on the URL slug first (strongest), then on URL + title + snippet.
     const slug = urlText(c.url);
@@ -183,6 +183,9 @@ function slugContradicts(a: Address, slug: string): boolean {
   for (let i = 0; i < toks.length; i++) {
     if (num.every((n, j) => toks[i + j] === n)) {
       let k = i + num.length;
+      // A direction before the street must be ours: "4138 W Tanglewood" is not "4138 E Tanglewood".
+      const dirHere = toks[k] && toks[k].length <= 2 && toks[k] !== street[0] && DIRECTIONS[toks[k]] ? DIRECTIONS[toks[k]] : undefined;
+      if (dirHere && a.preDir && dirHere !== DIRECTIONS[a.preDir]) continue;
       if (toks[k] && toks[k].length <= 2 && toks[k] !== street[0]) k++;
       if (street.every((w, j) => toks[k + j] === w)) return false;
     }
