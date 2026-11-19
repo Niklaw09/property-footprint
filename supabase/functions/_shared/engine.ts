@@ -1,0 +1,280 @@
+// The finding engine: portal lookups + web/image/video search -> deterministic address matching -> findings.
+
+import { type Address, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
+import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
+import { SITES, SEARCH_GROUPS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, siteFor, unknownSite } from './sites.ts';
+
+export interface Finding {
+  id: string; // stable hash of the canonical URL
+  url: string;
+  canonicalUrl: string;
+  domain: string;
+  siteKey: string;
+  siteName: string;
+  category: SiteCategory;
+  media: MediaType[];
+  title: string;
+  snippet: string;
+  thumbnails: string[];
+  confidence: Exclude<MatchLevel, 'none'>;
+  evidence: string[]; // codes: street, suffix, unit, zip, city, state, portal_lookup, other_unit, unit_missing
+  foundVia: string[];
+  playbook: string;
+  coveredBy?: string; // e.g. trulia is removed through zillow
+}
+
+export interface DirectCheck {
+  siteKey: string;
+  siteName: string;
+  url: string; // a search page on that site (labelled as a search, never as a finding)
+  playbook: string;
+}
+
+export interface ScanDiagnostics {
+  provider: string;
+  queries: number;
+  queryErrors: { label: string; code: string }[];
+  lookups: { key: string; ok: boolean; found: number; error?: string }[];
+  candidates: number;
+  rejected: Record<string, number>;
+  durationMs: number;
+}
+
+export interface ScanResult {
+  address: Address;
+  display: string;
+  findings: Finding[];
+  checks: DirectCheck[];
+  diagnostics: ScanDiagnostics;
+  scannedAt: string;
+}
+
+export function buildQueries(a: Address): SearchQuery[] {
+  const phrases = streetPhrases(a);
+  const loc = `${a.city} ${a.state}`;
+  const qs: SearchQuery[] = [
+    { label: 'general', kind: 'web', phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim() },
+    { label: 'zip', kind: 'web', phrases, extra: a.zip ?? a.city },
+    ...SEARCH_GROUPS.map((g) => ({ label: g.label, kind: 'web' as const, phrases, extra: a.city, sites: g.domains })),
+    { label: 'media_words', kind: 'web', phrases, extra: `${a.city} ("virtual tour" OR "3D tour" OR "floor plan" OR video OR photos)` },
+    { label: 'images', kind: 'images', phrases, extra: loc },
+    { label: 'videos', kind: 'videos', phrases, extra: a.city },
+  ];
+  if (a.unit) qs.push({ label: 'unit', kind: 'web', phrases: phrases.map((p) => `${p} ${a.unit!.toUpperCase()}`), extra: a.city });
+  return qs;
+}
+
+const MEDIA_WORDS: [RegExp, MediaType][] = [
+  [/\b(3d|virtual|360|matterport|walk[- ]?through)\b.*\btour|\btour\b.*\b(3d|virtual|360)\b|matterport/i, 'tour'],
+  [/\bfloor ?plans?\b/i, 'floorplan'],
+  [/\bvideo|drone|youtube|vimeo|reel\b/i, 'video'],
+  [/\bphotos?\b|\bpictures?\b|\bimages?\b|\bgallery\b/i, 'photos'],
+];
+
+function detectMedia(site: Site, c: Candidate): MediaType[] {
+  const set = new Set<MediaType>(site.media);
+  const text = `${c.title} ${c.snippet}`;
+  for (const [re, m] of MEDIA_WORDS) if (re.test(text)) set.add(m);
+  if (c.thumbnail) set.add('photos');
+  if (c.via.startsWith('videos')) set.add('video');
+  return [...set];
+}
+
+function siteRank(key: string): number {
+  const i = SITES.findIndex((s) => s.key === key);
+  return i === -1 ? 999 : i;
+}
+
+const SUFFIX_SET = new Set(Object.values(SUFFIXES));
+const CATEGORY_ORDER: SiteCategory[] = ['portal', 'tour', 'property_site', 'video', 'brokerage', 'rental', 'social', 'other'];
+
+export function hashId(s: string): string {
+  // FNV-1a 32-bit, hex. Stable across runtimes.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/** Turn raw candidates into verified findings. Pure and deterministic. */
+export function evaluate(a: Address, candidates: Candidate[], rejected: Record<string, number> = {}): Finding[] {
+  const bump = (k: string) => (rejected[k] = (rejected[k] ?? 0) + 1);
+  const byUrl = new Map<string, Finding>();
+  for (const c of candidates) {
+    if (!c.url || !/^https?:\/\//i.test(c.url)) { bump('bad_url'); continue; }
+    if (isIgnored(c.url)) { bump('ignored_site'); continue; }
+    const site = siteFor(c.url) ?? unknownSite(c.url);
+    const isLookup = c.via.startsWith('lookup:');
+    if (!isLookup && !isDetailPage(site, c.url)) { bump('not_a_property_page'); continue; }
+
+    // Match on the URL slug first (strongest), then on URL + title + snippet.
+    const slug = urlText(c.url);
+    const text = isLookup ? `${c.addressText ?? ''}` : `${slug} | ${c.title} | ${c.snippet}`;
+    const m = matchAddress(a, text);
+    if (m.level === 'none') { bump('address_mismatch'); continue; }
+    // A slug that names a *different* house number on the same street is a different property even if the snippet mentions ours.
+    if (!isLookup && slugContradicts(a, slug)) { bump('slug_contradiction'); continue; }
+
+    const key = canonicalUrl(c.url);
+    const existing = byUrl.get(key);
+    const evidence = [...m.reasons, ...(isLookup ? ['portal_lookup'] : [])];
+    if (existing) {
+      existing.foundVia = [...new Set([...existing.foundVia, c.via])];
+      existing.evidence = [...new Set([...existing.evidence, ...evidence])];
+      if (c.thumbnail && !existing.thumbnails.includes(c.thumbnail)) existing.thumbnails.push(c.thumbnail);
+      for (const md of detectMedia(site, c)) if (!existing.media.includes(md)) existing.media.push(md);
+      if (m.level === 'exact') existing.confidence = 'exact';
+      if (!existing.title && c.title) existing.title = c.title;
+      if (!existing.snippet && c.snippet) existing.snippet = c.snippet;
+      continue;
+    }
+    byUrl.set(key, {
+      id: hashId(key),
+      url: c.url,
+      canonicalUrl: key,
+      domain: hostOf(c.url),
+      siteKey: site.key,
+      siteName: site.name,
+      category: site.category,
+      media: detectMedia(site, c),
+      title: c.title,
+      snippet: c.snippet,
+      thumbnails: c.thumbnail ? [c.thumbnail] : [],
+      confidence: m.level,
+      evidence,
+      foundVia: [c.via],
+      playbook: site.playbook,
+    });
+  }
+  const findings = [...byUrl.values()];
+  findings.sort((x, y) =>
+    (x.confidence === 'exact' ? 0 : 1) - (y.confidence === 'exact' ? 0 : 1) ||
+    CATEGORY_ORDER.indexOf(x.category) - CATEGORY_ORDER.indexOf(y.category) ||
+    siteRank(x.siteKey) - siteRank(y.siteKey) ||
+    y.media.length - x.media.length ||
+    x.domain.localeCompare(y.domain));
+  return findings;
+}
+
+/**
+ * True when the URL path itself spells out a street address that is not ours
+ * (e.g. /home/4996-n-malaya-st-denver-co-80249 whose snippet merely mentions our address nearby).
+ */
+function slugContradicts(a: Address, slug: string): boolean {
+  const toks = canonTokens(slug);
+  const looksLikeAddress = toks.some((t, i) => /^\d+[a-z]?$/.test(t) && toks.slice(i + 1, i + 6).some((x) => SUFFIX_SET.has(x)) && /^[a-z]/.test(toks[i + 1] ?? ''));
+  if (!looksLikeAddress) return false;
+  const num = rawTokens(a.number);
+  const street = a.street.split(' ').map(canon);
+  for (let i = 0; i < toks.length; i++) {
+    if (num.every((n, j) => toks[i + j] === n)) {
+      let k = i + num.length;
+      if (toks[k] && toks[k].length <= 2 && toks[k] !== street[0]) k++;
+      if (street.every((w, j) => toks[k + j] === w)) return false;
+    }
+  }
+  return true;
+}
+
+function addCoveredSiblings(findings: Finding[]): Finding[] {
+  // Trulia and HotPads show Zillow's listing data; removing photos on Zillow removes them there too.
+  const hasZillow = findings.some((f) => f.siteKey === 'zillow');
+  for (const f of findings) if (hasZillow && (f.siteKey === 'trulia' || f.siteKey === 'hotpads')) f.coveredBy = 'zillow';
+  return findings;
+}
+
+export function directChecks(a: Address, findings: Finding[]): DirectCheck[] {
+  const found = new Set(findings.map((f) => f.siteKey));
+  const line = streetLine(a, { unit: false });
+  const full = `${streetLine(a)}, ${a.city}, ${a.state} ${a.zip ?? ''}`.trim();
+  const google = (site: string) => `https://www.google.com/search?q=${encodeURIComponent(`"${line}" ${a.city} site:${site}`)}`;
+  const checks: DirectCheck[] = [
+    { siteKey: 'zillow', siteName: 'Zillow', url: `https://www.zillow.com/homes/${encodeURIComponent(full.replace(/\s+/g, '-'))}_rb/`, playbook: 'zillow' },
+    { siteKey: 'redfin', siteName: 'Redfin', url: google('redfin.com'), playbook: 'redfin' },
+    { siteKey: 'realtor', siteName: 'Realtor.com', url: google('realtor.com'), playbook: 'realtor' },
+    { siteKey: 'homes', siteName: 'Homes.com', url: google('homes.com'), playbook: 'homes' },
+    { siteKey: 'trulia', siteName: 'Trulia', url: google('trulia.com'), playbook: 'trulia' },
+    { siteKey: 'matterport', siteName: 'Matterport', url: google('matterport.com'), playbook: 'matterport' },
+    { siteKey: 'youtube', siteName: 'YouTube', url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${line} ${a.city}`)}`, playbook: 'youtube' },
+  ];
+  return checks.filter((c) => !found.has(c.siteKey));
+}
+
+export interface EngineOptions {
+  provider: SearchProvider | null;
+  fetchFn?: FetchLike;
+  lookups?: PortalLookup[];
+  timeoutMs?: number;
+  concurrency?: number;
+}
+
+async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  try {
+    return await fn(ctl.signal);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResult> {
+  const started = Date.now();
+  const fetchFn = opts.fetchFn ?? fetch;
+  const timeoutMs = opts.timeoutMs ?? 9000;
+  const candidates: Candidate[] = [];
+  const diagnostics: ScanDiagnostics = {
+    provider: opts.provider?.name ?? 'none', queries: 0, queryErrors: [], lookups: [], candidates: 0, rejected: {}, durationMs: 0,
+  };
+
+  const lookupLine = `${streetLine(a)} ${a.city} ${a.state} ${a.zip ?? ''}`.trim();
+  const lookupLineNoPostDir = a.postDir ? `${streetLine({ ...a, postDir: undefined })} ${a.city} ${a.state} ${a.zip ?? ''}`.trim() : null;
+
+  const lookupTasks = (opts.lookups ?? PORTAL_LOOKUPS).map(async (l) => {
+    try {
+      let rows = await withTimeout(timeoutMs, (s) => l.run(lookupLine, fetchFn, s));
+      // Zillow's autocomplete sometimes only matches after dropping a trailing directional ("SE").
+      if (rows.length === 0 && lookupLineNoPostDir) rows = await withTimeout(timeoutMs, (s) => l.run(lookupLineNoPostDir, fetchFn, s));
+      candidates.push(...rows);
+      diagnostics.lookups.push({ key: l.key, ok: true, found: rows.length });
+    } catch (e) {
+      diagnostics.lookups.push({ key: l.key, ok: false, found: 0, error: e instanceof ProviderError ? e.code : 'network' });
+    }
+  });
+
+  const queries = opts.provider ? buildQueries(a) : [];
+  diagnostics.queries = queries.length;
+  const queue = [...queries];
+  const worker = async () => {
+    for (let q = queue.shift(); q; q = queue.shift()) {
+      try {
+        const rows = await withTimeout(timeoutMs, (s) => opts.provider!.search(q!, s));
+        candidates.push(...rows);
+      } catch (e) {
+        diagnostics.queryErrors.push({ label: q.label, code: e instanceof ProviderError ? e.code : 'network' });
+      }
+    }
+  };
+  await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 5 }, worker)]);
+
+  diagnostics.candidates = candidates.length;
+  const findings = addCoveredSiblings(evaluate(a, candidates, diagnostics.rejected));
+  diagnostics.durationMs = Date.now() - started;
+  return {
+    address: a,
+    display: displayAddress(a),
+    findings,
+    checks: directChecks(a, findings),
+    diagnostics,
+    scannedAt: new Date().toISOString(),
+  };
+}
+
+/** True when every source failed, so "no results" would be a lie. */
+export function scanFailed(r: ScanResult): boolean {
+  const lookupsOk = r.diagnostics.lookups.some((l) => l.ok);
+  const searchOk = r.diagnostics.queries > 0 && r.diagnostics.queryErrors.length < r.diagnostics.queries;
+  return !lookupsOk && !searchOk;
+}
