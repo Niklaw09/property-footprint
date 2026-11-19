@@ -8,6 +8,8 @@ describe('serper free-tier fallback', () => {
     expect(simplifyQuery(q('a', ['zillow.com', 'redfin.com']), 0)).toBe('("14425 American Kestrel Dr" OR "14425 American Kestrel Drive") Austin TX 78738 (site:zillow.com OR site:redfin.com)');
     expect(simplifyQuery(q('a', ['zillow.com']), 1)).toBe('"14425 American Kestrel Dr" Austin TX 78738');
     expect(simplifyQuery(q('a'), 2)).toBe('14425 American Kestrel Dr Austin TX 78738');
+    expect(simplifyQuery(q('brokerages', ['realgeeks.com']), 1)).toBe('"14425 American Kestrel Drive" Austin TX 78738 realtor listing');
+    expect(simplifyQuery({ ...q('media_words'), extra: 'Austin ("virtual tour" OR photos)' }, 1)).toBe('"14425 American Kestrel Dr" Austin photos');
   });
 
   it('retries without operators when the account refuses them, and does not pay twice for the same text', async () => {
@@ -20,13 +22,21 @@ describe('serper free-tier fallback', () => {
     };
     const p = serperProvider('k', fake as any);
     const a = await p.search(q('general'));
-    const b = await p.search(q('portals', ['zillow.com', 'redfin.com']));
+    const b = await p.search(q('general2', ['zillow.com', 'redfin.com']));
     expect(a).toHaveLength(1);
     expect(b).toHaveLength(1);
     expect(sent).toEqual([
       '("14425 American Kestrel Dr" OR "14425 American Kestrel Drive") Austin TX 78738',
       '"14425 American Kestrel Dr" Austin TX 78738',
     ]);
+  });
+
+  it('waits and retries when Serper says slow down', async () => {
+    let n = 0;
+    const fake = async () => (++n === 1 ? new Response('{"message":"Rate limit exceeded."}', { status: 429 }) : new Response('{"organic":[]}', { status: 200 }));
+    const p = serperProvider('k', fake as any);
+    expect(await p.search(q('general'))).toEqual([]);
+    expect(n).toBe(2);
   });
 
   it('still reports other errors', async () => {
