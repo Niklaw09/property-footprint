@@ -40,6 +40,21 @@ async function readSome(res: Response, limit: number): Promise<string> {
   return out.slice(0, limit);
 }
 
+/** The page's own share image (og:image), when it looks like a listing photo rather than a logo. */
+export function listingImage(html: string, pageUrl: string): string | undefined {
+  const og = [...html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)(?::url)?["'][^>]*>/gi)]
+    .map((m) => m[0].match(/content=["']([^"']+)["']/i)?.[1] ?? '')
+    .filter(Boolean);
+  for (const u of og) {
+    if (PLACEHOLDER.test(u) || !LISTING_PHOTO.test(u)) continue;
+    try {
+      const abs = new URL(u.replace(/&amp;/g, '&'), pageUrl);
+      if (abs.protocol === 'https:') return abs.toString();
+    } catch { /* skip */ }
+  }
+  return undefined;
+}
+
 /** Decide from a page's HTML whether it shows listing photos. Exported for tests. */
 export function htmlShowsPhotos(html: string): boolean {
   const og = [...html.matchAll(/<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/gi)]
@@ -55,13 +70,20 @@ export function htmlShowsPhotos(html: string): boolean {
   return imgs.size >= 3;
 }
 
+export interface PhotoCheck { status: PhotoStatus; image?: string }
+
 export async function checkPhotos(url: string, fetchFn: FetchLike, timeoutMs = 6000): Promise<PhotoStatus> {
+  return (await checkPage(url, fetchFn, timeoutMs)).status;
+}
+
+/** Open the page and report whether it shows photos, plus its share image to show the owner as proof. */
+export async function checkPage(url: string, fetchFn: FetchLike, timeoutMs = 6000): Promise<PhotoCheck> {
   // Only public web pages: https, a real host name, no IP addresses or local names.
   try {
     const u = new URL(url);
-    if (u.protocol !== 'https:' || !/\.[a-z]{2,}$/i.test(u.hostname) || /^[\d.]+$|^\[|localhost|\.local$|\.internal$/i.test(u.hostname)) return 'unknown';
+    if (u.protocol !== 'https:' || !/\.[a-z]{2,}$/i.test(u.hostname) || /^[\d.]+$|^\[|localhost|\.local$|\.internal$/i.test(u.hostname)) return { status: 'unknown' };
   } catch {
-    return 'unknown';
+    return { status: 'unknown' };
   }
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
@@ -76,13 +98,14 @@ export async function checkPhotos(url: string, fetchFn: FetchLike, timeoutMs = 6
       signal: ctl.signal,
       redirect: 'follow',
     });
-    if (!res.ok || !/html/i.test(res.headers.get('content-type') ?? 'text/html')) return 'unknown';
+    if (!res.ok || !/html/i.test(res.headers.get('content-type') ?? 'text/html')) return { status: 'unknown' };
     const html = await readSome(res, 400_000);
     // A page that only says "captcha"/"access denied" proves nothing.
-    if (html.length < 2000 || /captcha|access denied|are you a robot|cf-chl/i.test(html.slice(0, 5000))) return 'unknown';
-    return htmlShowsPhotos(html) ? 'seen' : 'none';
+    if (html.length < 2000 || /captcha|access denied|are you a robot|cf-chl/i.test(html.slice(0, 5000))) return { status: 'unknown' };
+    if (!htmlShowsPhotos(html)) return { status: 'none' };
+    return { status: 'seen', image: listingImage(html, res.url || url) };
   } catch {
-    return 'unknown';
+    return { status: 'unknown' };
   } finally {
     clearTimeout(t);
   }
