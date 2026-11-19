@@ -66,6 +66,16 @@ export interface EntitlementRow {
   amount_cents: number;
   paid_at: string;
   paid_until: string;
+  lang?: string;
+  review_email_sent_at?: string | null;
+}
+
+export interface ReviewRow {
+  user_id: string;
+  report_id: string;
+  rating: number; // 1-5
+  comment: string;
+  created_at: string;
 }
 
 export interface Store {
@@ -92,6 +102,13 @@ export interface Store {
   /** Insert or extend; must be idempotent on session_id. Returns false if this session was already applied. */
   grantEntitlement(row: EntitlementRow): Promise<boolean>;
   countRuns(reportId: string, kind: RunRow['kind'], sinceIso: string): Promise<number>;
+  /** Current count of a rate bucket without changing it (0 if missing or expired). */
+  peekBucket(bucket: string): Promise<number>;
+  getReview(userId: string): Promise<ReviewRow | null>;
+  upsertReview(row: ReviewRow): Promise<void>;
+  /** Entitlements granted between fromIso and toIso whose review email hasn't gone out. */
+  dueReviewEmails(fromIso: string, toIso: string, limit: number): Promise<EntitlementRow[]>;
+  markReviewEmailSent(sessionId: string, atIso: string): Promise<void>;
 }
 
 export interface ServiceConfig {
@@ -104,6 +121,10 @@ export interface ServiceConfig {
   ipSalt?: string;
   verifyGone?: (url: string) => Promise<'gone' | 'live' | 'unknown'>;
   priceCents?: number;
+  /** Launch offer: this many homes can be unlocked free (one per account). 0 or unset turns it off. */
+  promoLimit?: number;
+  /** Public Google review link shown after an on-site review and in the follow-up email. */
+  reviewUrl?: string;
 }
 
 export interface Limits {
@@ -119,7 +140,7 @@ export interface Limits {
 }
 
 export class ServiceError extends Error {
-  constructor(public code: 'invalid_address' | 'payment_required' | 'busy' | 'daily_limit' | 'limit_anon' | 'limit_user' | 'limit_homes' | 'captcha' | 'scan_failed' | 'not_found' | 'forbidden' | 'too_soon', public detail?: string) {
+  constructor(public code: 'invalid_address' | 'payment_required' | 'busy' | 'daily_limit' | 'limit_anon' | 'limit_user' | 'limit_homes' | 'captcha' | 'scan_failed' | 'not_found' | 'forbidden' | 'too_soon' | 'promo_over' | 'promo_used' | 'invalid_review', public detail?: string) {
     super(code);
   }
 }
@@ -162,6 +183,10 @@ export interface ReportView {
   history: { at: string; found: number; newCount: number; goneCount: number; kind: RunRow['kind'] }[];
   ownerName?: string;
   monitor?: boolean;
+  /** Launch offer state, or null when there is none. */
+  promo: { left: number; total: number; usedByYou: boolean } | null;
+  /** Unlocked members only: whether they already left an on-site review, and the Google link. */
+  review: { done: boolean; googleUrl: string | null } | null;
 }
 
 export interface MyReportSummary {
@@ -189,6 +214,9 @@ const defaultToken = (): string => {
 const DAY_MS = 24 * 3600 * 1000;
 const RECHECK_MS = 60 * DAY_MS; // automatic re-check every 60 days
 const YEAR_MS = 365 * DAY_MS;
+const PROMO_BUCKET = 'promo:launch';
+const PROMO_TTL = 10 * 365 * 24 * 3600; // effectively permanent
+const REVIEW_EMAIL_AFTER_MS = 7 * DAY_MS;
 
 export function createService(cfg: ServiceConfig) {
   const { store } = cfg;
@@ -200,6 +228,13 @@ export function createService(cfg: ServiceConfig) {
     perDay: 300, reuseHours: 24, manualRescanHours: 12, manualRescansPer30Days: 2, ...cfg.limits,
   };
   const price = { cents: cfg.priceCents ?? 1999, currency: 'usd' };
+  const promoLimit = Math.max(0, cfg.promoLimit ?? 0);
+  async function promoState(userId: string | null): Promise<ReportView['promo']> {
+    if (!promoLimit) return null;
+    const used = await store.peekBucket(PROMO_BUCKET);
+    const usedByYou = userId ? (await store.peekBucket(`promo:user:${userId}`)) > 0 : false;
+    return { left: Math.max(0, promoLimit - used), total: promoLimit, usedByYou };
+  }
   const isActive = (e: EntitlementRow | null) => !!e && new Date(e.paid_until).getTime() > now().getTime();
   async function unlockedFor(userId: string | null, reportId: string): Promise<EntitlementRow | null> {
     if (!userId) return null;
@@ -308,10 +343,12 @@ export function createService(cfg: ServiceConfig) {
       history: runs.filter((r) => r.status === 'ok').map((r) => ({ at: r.started_at, found: r.found, newCount: r.new_count, goneCount: r.gone_count, kind: r.kind })),
       ownerName: membership?.owner_name,
       monitor: membership?.monitor,
+      promo: unlocked ? null : await promoState(userId),
+      review: unlocked ? { done: !!(await store.getReview(userId!)), googleUrl: cfg.reviewUrl || null } : null,
     };
   }
 
-  return {
+  const api = {
     async scan(input: { address: string; userId: string | null; ip: string }): Promise<{ view: ReportView; claimToken: string | null }> {
       let address: Address;
       try {
@@ -418,7 +455,7 @@ export function createService(cfg: ServiceConfig) {
     },
 
     /** Record a completed payment (from the Stripe webhook or the return-page confirmation). Idempotent. */
-    async grantPurchase(input: { userId: string; reportId: string; sessionId: string; amountCents: number }): Promise<boolean> {
+    async grantPurchase(input: { userId: string; reportId: string; sessionId: string; amountCents: number; lang?: string }): Promise<boolean> {
       const report = await store.getReport(input.reportId);
       if (!report) throw new ServiceError('not_found');
       await store.upsertMembership({ user_id: input.userId, report_id: input.reportId, monitor: true });
@@ -426,7 +463,7 @@ export function createService(cfg: ServiceConfig) {
       const base = prev && isActive(prev) ? new Date(prev.paid_until).getTime() : now().getTime();
       const granted = await store.grantEntitlement({
         user_id: input.userId, report_id: input.reportId, session_id: input.sessionId, amount_cents: input.amountCents,
-        paid_at: now().toISOString(), paid_until: new Date(base + YEAR_MS).toISOString(),
+        paid_at: now().toISOString(), paid_until: new Date(base + YEAR_MS).toISOString(), lang: input.lang === 'es' ? 'es' : 'en',
       });
       // Start the 60-day re-check clock from the purchase.
       if (granted && (!report.next_scan_at || new Date(report.next_scan_at).getTime() > now().getTime() + RECHECK_MS)) {
@@ -436,6 +473,46 @@ export function createService(cfg: ServiceConfig) {
     },
 
     price,
+
+    /** Launch offer counter for the landing page (null when there's no offer). */
+    promoStatus: () => promoState(null),
+
+    /** Launch offer: unlock one home free (one per account) while spots last. */
+    async claimPromo(input: { userId: string; reportId: string; lang?: string }): Promise<ReportView> {
+      const report = await store.getReport(input.reportId);
+      if (!report) throw new ServiceError('not_found');
+      if (!(await store.getMembership(input.userId, input.reportId))) throw new ServiceError('forbidden');
+      if (await unlockedFor(input.userId, input.reportId)) return buildView(report, input.userId);
+      if (!promoLimit || (await store.peekBucket(PROMO_BUCKET)) >= promoLimit) throw new ServiceError('promo_over');
+      if ((await store.bump(`promo:user:${input.userId}`, PROMO_TTL)) > 1) throw new ServiceError('promo_used');
+      if ((await store.bump(PROMO_BUCKET, PROMO_TTL)) > promoLimit) throw new ServiceError('promo_over');
+      await api.grantPurchase({ userId: input.userId, reportId: input.reportId, sessionId: `promo_${input.userId}_${input.reportId}`, amountCents: 0, lang: input.lang });
+      return buildView((await store.getReport(input.reportId))!, input.userId);
+    },
+
+    /** Optional on-site review. Never required for, or tied to, any offer. */
+    async submitReview(input: { userId: string; reportId: string; rating: number; comment?: string }): Promise<void> {
+      if (!(await store.getMembership(input.userId, input.reportId))) throw new ServiceError('forbidden');
+      const rating = Math.round(Number(input.rating));
+      if (!(rating >= 1 && rating <= 5)) throw new ServiceError('invalid_review');
+      await store.upsertReview({ user_id: input.userId, report_id: input.reportId, rating, comment: String(input.comment ?? '').trim().slice(0, 2000), created_at: now().toISOString() });
+    },
+
+    /** Called by the hourly cron: one follow-up email about a week after a home is unlocked. */
+    async sendReviewEmails(send: (to: { userId: string; reportId: string; lang: string; display: string }) => Promise<boolean>, limit = 20): Promise<number> {
+      const to = new Date(now().getTime() - REVIEW_EMAIL_AFTER_MS);
+      const from = new Date(to.getTime() - 7 * DAY_MS); // don't email people from long ago
+      const due = await store.dueReviewEmails(from.toISOString(), to.toISOString(), limit);
+      let sent = 0;
+      for (const e of due) {
+        const report = await store.getReport(e.report_id);
+        if (!report) continue;
+        // Mark first so a crash can't send twice.
+        await store.markReviewEmailSent(e.session_id, now().toISOString());
+        if (await send({ userId: e.user_id, reportId: e.report_id, lang: e.lang ?? 'en', display: report.display }).catch(() => false)) sent++;
+      }
+      return sent;
+    },
 
     /** Called hourly by pg_cron. Re-scans paid, monitored reports whose 60-day re-check is due. */
     async runDue(limit = 5): Promise<{ scanned: number; failed: number }> {
@@ -456,6 +533,7 @@ export function createService(cfg: ServiceConfig) {
 
     playbookFor,
   };
+  return api;
 }
 
 export type Service = ReturnType<typeof createService>;

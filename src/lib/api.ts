@@ -20,6 +20,9 @@ export interface Api {
   selftest(): Promise<SelftestResult>;
   checkout(reportId: string, lang: string): Promise<string>; // URL to send the browser to
   confirm(sessionId: string): Promise<{ ok: boolean; reportId?: string }>;
+  claimPromo(reportId: string, lang: string): Promise<ReportView>;
+  review(reportId: string, rating: number, comment: string): Promise<void>;
+  promo(): Promise<ReportView['promo']>;
   // auth
   session(): Promise<{ email: string } | null>;
   onAuth(cb: (s: { email: string } | null) => void): () => void;
@@ -54,6 +57,9 @@ function liveApi(sb: SupabaseClient): Api {
     selftest: () => call({ action: 'selftest' }),
     checkout: async (reportId, lang) => (await call<{ url: string }>({ action: 'checkout', reportId, lang, claimToken: claims.get(reportId) })).url,
     confirm: (sessionId) => call({ action: 'confirm', sessionId }),
+    claimPromo: (reportId, lang) => call({ action: 'claim_promo', reportId, lang, claimToken: claims.get(reportId) }),
+    review: (reportId, rating, comment) => call({ action: 'review', reportId, rating, comment }),
+    promo: async () => (await call<{ promo: ReportView['promo'] }>({ action: 'config' })).promo ?? null,
     async session() { return toUser((await sb.auth.getSession()).data.session); },
     onAuth(cb) {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(toUser(s)));

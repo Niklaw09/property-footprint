@@ -83,6 +83,23 @@ export function supabaseStore(db: SupabaseClient): Store {
       if (res.error) throw new Error(res.error.message);
       return res.count ?? 0;
     },
+    async peekBucket(bucket) {
+      const row = check(await db.from('rate_buckets').select('count,expires_at').eq('bucket', bucket).maybeSingle()) as any;
+      return row && new Date(row.expires_at).getTime() > Date.now() ? row.count : 0;
+    },
+    async getReview(userId) {
+      return check(await db.from('reviews').select('*').eq('user_id', userId).maybeSingle()) as any;
+    },
+    async upsertReview(row) {
+      check(await db.from('reviews').upsert(row, { onConflict: 'user_id' }));
+    },
+    async dueReviewEmails(fromIso, toIso, limit) {
+      return check(await db.from('entitlements').select('*').is('review_email_sent_at', null)
+        .gte('paid_at', fromIso).lte('paid_at', toIso).order('paid_at', { ascending: true }).limit(limit)) as any;
+    },
+    async markReviewEmailSent(sessionId, atIso) {
+      check(await db.from('entitlements').update({ review_email_sent_at: atIso }).eq('session_id', sessionId));
+    },
     async dueMonitoredReports(nowIso, limit) {
       const paid = (check(await db.from('entitlements').select('user_id,report_id').gt('paid_until', nowIso)) as any[]);
       const monitored = (check(await db.from('memberships').select('user_id,report_id').eq('monitor', true)) as any[]);

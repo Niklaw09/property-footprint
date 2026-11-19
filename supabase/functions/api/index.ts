@@ -1,7 +1,7 @@
 // HomePrint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
 //
-// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, optional SCAN_DAILY_LIMIT, IP_HASH_SALT.
+// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { createService, httpVerifier, ServiceError } from '../_shared/service.ts';
@@ -10,6 +10,7 @@ import { supabaseStore } from './supabaseStore.ts';
 import { verifyTurnstile } from '../_shared/turnstile.ts';
 import { runSelftest } from '../_shared/selftest.ts';
 import { createCheckoutSession, getCheckoutSession } from '../_shared/stripe.ts';
+import { reviewEmail, sendWithResend } from '../_shared/reviewEmail.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,14 +34,31 @@ const service = createService({
   limits: { perDay: Number(env('SCAN_DAILY_LIMIT')) || 300 },
   ipSalt: env('IP_HASH_SALT') || env('CRON_SECRET'),
   priceCents: Number(env('PRICE_CENTS')) || 1999,
+  // Launch offer: first N homes unlock free, one per account. PROMO_FREE_LIMIT=0 turns it off.
+  promoLimit: env('PROMO_FREE_LIMIT') === '' ? 1000 : Number(env('PROMO_FREE_LIMIT')) || 0,
+  reviewUrl: env('GOOGLE_REVIEW_URL') || undefined,
 });
+
+/** One follow-up email per unlock, about a week later. Needs RESEND_API_KEY and EMAIL_FROM; skipped otherwise. */
+async function sendReviewEmails(): Promise<number> {
+  if (!env('RESEND_API_KEY') || !env('EMAIL_FROM')) return 0;
+  const site = (env('SITE_URL') || '').split(',')[0].trim().replace(/\/$/, '');
+  if (!site) return 0;
+  return service.sendReviewEmails(async ({ userId, reportId, lang, display }) => {
+    const { data } = await db.auth.admin.getUserById(userId);
+    const email = data?.user?.email;
+    if (!email) return false;
+    const msg = reviewEmail({ lang, display, reportUrl: `${site}/#/r/${reportId}`, googleUrl: env('GOOGLE_REVIEW_URL') || null });
+    return sendWithResend(env('RESEND_API_KEY'), env('EMAIL_FROM'), email, msg);
+  });
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
 
 const STATUS: Record<ServiceError['code'], number> = {
-  invalid_address: 400, payment_required: 402, busy: 429, daily_limit: 429, limit_anon: 429, limit_user: 429, limit_homes: 429, captcha: 403, scan_failed: 502, not_found: 404, forbidden: 403, too_soon: 429,
+  invalid_address: 400, payment_required: 402, busy: 429, daily_limit: 429, limit_anon: 429, limit_user: 429, limit_homes: 429, captcha: 403, scan_failed: 502, not_found: 404, forbidden: 403, too_soon: 429, promo_over: 410, promo_used: 409, invalid_review: 400,
 };
 
 async function userFrom(req: Request): Promise<{ id: string; email?: string } | null> {
@@ -91,7 +109,9 @@ Deno.serve(async (req) => {
   try {
     if (body.action === 'cron') {
       if (!env('CRON_SECRET') || req.headers.get('x-cron-secret') !== env('CRON_SECRET')) return json({ error: 'forbidden' }, 403);
-      return json(await service.runDue(Number(body.limit) || 5));
+      const due = await service.runDue(Number(body.limit) || 5);
+      const reviewEmails = await sendReviewEmails().catch((e) => { console.error('review emails', e); return 0; });
+      return json({ ...due, reviewEmails });
     }
 
     const user = await userFrom(req);
@@ -104,7 +124,7 @@ Deno.serve(async (req) => {
 
     switch (body.action) {
       case 'config':
-        return json({ live: !!provider(), captcha: !!env('TURNSTILE_SECRET_KEY'), payments: !!env('STRIPE_SECRET_KEY') });
+        return json({ live: !!provider(), captcha: !!env('TURNSTILE_SECRET_KEY'), payments: !!env('STRIPE_SECRET_KEY'), promo: await service.promoStatus() });
       case 'scan':
         if (!provider()) return json({ error: 'not_configured' }, 503);
         // Bot check on every scan request (invisible for most people). Tokens are single-use.
@@ -153,6 +173,15 @@ Deno.serve(async (req) => {
         await service.grantPurchase({ userId: uid, reportId: s.reportId, sessionId: s.id, amountCents: s.amountCents });
         return json({ ok: true, reportId: s.reportId });
       }
+      case 'claim_promo': {
+        const uid = needUser();
+        const reportId = String(body.reportId ?? '');
+        await service.getReport({ reportId, userId: uid, claimToken: body.claimToken ?? null }); // links an anonymous scan first
+        return json(await service.claimPromo({ userId: uid, reportId, lang: body.lang }));
+      }
+      case 'review':
+        await service.submitReview({ userId: needUser(), reportId: String(body.reportId ?? ''), rating: Number(body.rating), comment: body.comment });
+        return json({ ok: true });
       case 'mine':
         return json(await service.myReports(needUser()));
       default:
