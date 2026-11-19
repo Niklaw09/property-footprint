@@ -18,6 +18,8 @@ export function errorText(e: unknown, t: Strings): string {
     case 'promo_over': return t.errPromoOver;
     case 'promo_used': return t.errPromoUsed;
     case 'invalid_review': return t.errReview;
+    case 'bad_code': return t.errCode;
+    case 'email_limit': return t.errEmailLimit;
     case 'forbidden': return e instanceof ApiError && e.detail === 'sign_in_required' ? t.errSignIn : t.errGeneric;
     default: return t.errGeneric;
   }

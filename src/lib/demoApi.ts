@@ -79,11 +79,12 @@ export function demoApi(): Api {
     promo: () => svc.promoStatus(),
     async session() { return user; },
     onAuth(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-    async sendMagicLink(email) {
+    async sendMagicLink() { await delay(300); },
+    async googleEnabled() { return true; },
+    async verifyEmailCode(email) {
       user = { email: email || 'demo@example.com' };
       listeners.forEach((l) => l(user));
     },
-    async googleEnabled() { return true; },
     async signInWithGoogle() {
       user = { email: 'demo@gmail.com' };
       listeners.forEach((l) => l(user));
