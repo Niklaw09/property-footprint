@@ -125,20 +125,20 @@ function brokerage(b: BrokerageInput): Playbook {
   const steps: Step[] = [
     {
       en: 'Look at the page and find who is named on it: the listing agent and their office, or a line like “Listing courtesy of …”. That tells you whether this brokerage sold your home or is only showing another brokerage’s MLS listing.',
-      es: 'Mira la página y busca quién aparece: el agente del anuncio y su oficina, o una línea como “Listing courtesy of …”. Eso te dice si esta correduría vendió tu casa o solo muestra un anuncio del MLS de otra correduría.',
+      es: 'Mira la página y busca quién aparece: el agente del anuncio y su oficina, o una línea como “Listing courtesy of …”. Eso te dice si esta agencia inmobiliaria vendió tu casa o solo muestra un anuncio del MLS de otra agencia inmobiliaria.',
       more: {
         en: 'If this brokerage listed your home, its agent can take the listing down from the brokerage site directly and is your best first contact. If it only shows another brokerage’s listing through the MLS, the photos usually disappear here once the listing agent marks them private in the MLS, where the MLS allows it.',
-        es: 'Si esta correduría publicó tu casa, su agente puede quitar el anuncio del sitio directamente y es tu mejor primer contacto. Si solo muestra el anuncio de otra correduría a través del MLS, las fotos suelen desaparecer aquí cuando el agente del anuncio las marca como privadas en el MLS, donde el MLS lo permite.',
+        es: 'Si esta agencia inmobiliaria publicó tu casa, su agente puede quitar el anuncio del sitio directamente y es tu mejor primer contacto. Si solo muestra el anuncio de otra agencia inmobiliaria a través del MLS, las fotos suelen desaparecer aquí cuando el agente del anuncio las marca como privadas en el MLS, donde el MLS lo permite.',
       },
     },
     {
       en: 'Send the listing agent the request letter. Ask them to mark the photos, tours and floor plans private in the MLS if their MLS allows it, and to remove the listing from their own and their brokerage’s website.',
-      es: 'Envía al agente del anuncio la carta de solicitud. Pídele que marque como privadas las fotos, recorridos y planos en el MLS si su MLS lo permite, y que quite el anuncio de su sitio y del de su correduría.',
+      es: 'Envía al agente del anuncio la carta de solicitud. Pídele que marque como privadas las fotos, recorridos y planos en el MLS si su MLS lo permite, y que quite el anuncio de su sitio y del de su agencia inmobiliaria.',
       more: AGENT_FAIR,
     },
     {
       en: 'If the photos are still on this site after two weeks, contact the local office named on the page (phone or email) and ask them to hide the listing’s photos on the brokerage website. Paste the site request letter with the exact link.',
-      es: 'Si las fotos siguen en este sitio después de dos semanas, contacta a la oficina local que aparece en la página (teléfono o correo) y pide que oculten las fotos del anuncio en el sitio de la correduría. Pega la carta para el sitio con el enlace exacto.',
+      es: 'Si las fotos siguen en este sitio después de dos semanas, contacta a la oficina local que aparece en la página (teléfono o correo) y pide que oculten las fotos del anuncio en el sitio de la agencia inmobiliaria. Pega la carta para el sitio con el enlace exacto.',
     },
   ];
   if (b.privacy) steps.push({ ...b.privacy.step, link: b.privacy.link, more: PRIVACY_LAW_INFO.a });
@@ -166,10 +166,10 @@ function brokerage(b: BrokerageInput): Playbook {
     tips: [MLS_TIP, SEARCH_TIP],
     more: [
       {
-        q: { en: 'Why is a brokerage I never used showing my home?', es: '¿Por qué una correduría que nunca usé muestra mi casa?' },
+        q: { en: 'Why is a brokerage I never used showing my home?', es: '¿Por qué una agencia inmobiliaria que nunca usé muestra mi casa?' },
         a: {
           en: 'Brokerages share listings with each other through the MLS (this is called IDX), so every brokerage site in your area can show every listing. They keep showing sold homes because the MLS feed allows it. When the photos are marked private or removed in the MLS, they drop off these sites too.',
-          es: 'Las corredurías comparten anuncios entre sí a través del MLS (se llama IDX), así que cada sitio de correduría de tu zona puede mostrar todos los anuncios. Siguen mostrando casas vendidas porque el MLS lo permite. Cuando las fotos se marcan como privadas o se quitan en el MLS, también desaparecen de estos sitios.',
+          es: 'Las agencias inmobiliarias comparten anuncios entre sí a través del MLS (se llama IDX), así que cada sitio de agencia inmobiliaria de tu zona puede mostrar todos los anuncios. Siguen mostrando casas vendidas porque el MLS lo permite. Cuando las fotos se marcan como privadas o se quitan en el MLS, también desaparecen de estos sitios.',
         },
       },
       ...(b.extraMore ?? []),
@@ -214,7 +214,7 @@ function social(s: SocialInput): Playbook {
     steps: [
       {
         en: 'Open the post and note the account name. Agents and brokerages usually list an email or website on their profile. Send them the request letter (or a short direct message) asking them to delete the post or make it private.',
-        es: 'Abre la publicación y anota el nombre de la cuenta. Los agentes y corredurías suelen poner un correo o sitio web en su perfil. Envíales la carta de solicitud (o un mensaje directo corto) pidiendo que borren la publicación o la hagan privada.',
+        es: 'Abre la publicación y anota el nombre de la cuenta. Los agentes y agencias inmobiliarias suelen poner un correo o sitio web en su perfil. Envíales la carta de solicitud (o un mensaje directo corto) pidiendo que borren la publicación o la hagan privada.',
         more: UPLOADER_FIRST.a,
       },
       ...(s.extra ?? []),
@@ -551,7 +551,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
     key: 'estately', name: 'Estately', group: 'portal', difficulty: 'medium', minutes: 15, status: 'researched', checkedOn: NOV19,
     outcome: {
       en: 'Estately is a brokerage site fed by the MLS. Photos go away when the listing agent marks them private in the MLS (where allowed), or when Estately removes them on request.',
-      es: 'Estately es un sitio de correduría alimentado por el MLS. Las fotos desaparecen cuando el agente las marca como privadas en el MLS (donde se permite) o cuando Estately las quita a pedido.',
+      es: 'Estately es un sitio de agencia inmobiliaria alimentado por el MLS. Las fotos desaparecen cuando el agente las marca como privadas en el MLS (donde se permite) o cuando Estately las quita a pedido.',
     },
     flow: [
       { en: 'Ask the listing agent (MLS)', es: 'Pedir al agente (MLS)' },
@@ -787,12 +787,12 @@ export const PLAYBOOKS: Record<string, Playbook> = {
   }),
 
   brokerage: brokerage({
-    key: 'brokerage', name: 'Agent or brokerage website', nameEs: 'Sitio de agente o correduría',
+    key: 'brokerage', name: 'Agent or brokerage website', nameEs: 'Sitio de agente o agencia inmobiliaria',
     covers: ['Fathom', 'Douglas Elliman', 'Windermere', 'Weichert', 'HomeSmart', 'LPT Realty', 'Realty ONE Group', 'Engel & Völkers', 'Long & Foster', 'United Real Estate', '@properties'],
     status: 'general', checkedOn: NOV19,
     outcome: {
       en: 'Agent and brokerage websites copy listings from the MLS (IDX). Where the MLS lets photos be marked private, they drop off these sites at the next update; some MLSs keep sold-listing photos on file. Either way, the agent or office named on the page can remove theirs.',
-      es: 'Los sitios de agentes y corredurías copian anuncios del MLS (IDX). Donde el MLS permite marcar las fotos como privadas, desaparecen de estos sitios en la siguiente actualización; algunos MLS conservan las fotos de casas vendidas. En cualquier caso, el agente u oficina que aparece en la página puede quitar las suyas.',
+      es: 'Los sitios de agentes y agencias inmobiliarias copian anuncios del MLS (IDX). Donde el MLS permite marcar las fotos como privadas, desaparecen de estos sitios en la siguiente actualización; algunos MLS conservan las fotos de casas vendidas. En cualquier caso, el agente u oficina que aparece en la página puede quitar las suyas.',
     },
     privacy: {
       step: {
@@ -840,7 +840,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
     steps: [
       {
         en: 'Open the tour and look for the name or brokerage on it (top-left corner or the info panel).',
-        es: 'Abre el recorrido y busca el nombre o la correduría (esquina superior izquierda o el panel de información).',
+        es: 'Abre el recorrido y busca el nombre o la agencia inmobiliaria (esquina superior izquierda o el panel de información).',
         ui: { surface: 'web', site: 'my.matterport.com', trail: ['ⓘ About', 'Presented by …'] },
       },
       {

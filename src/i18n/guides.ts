@@ -37,11 +37,11 @@ const es: typeof en = {
   questions: 'Preguntas frecuentes',
   alsoCovers: 'También cubre',
   guidesSearch: 'Busca una guía (por ejemplo: Zillow, KW, TikTok)',
-  guidesNone: 'Ninguna guía coincide con ese nombre. La guía “Sitio de agente o correduría” sirve para cualquier sitio de agente.',
+  guidesNone: 'Ninguna guía coincide con ese nombre. La guía “Sitio de agente o agencia inmobiliaria” sirve para cualquier sitio de agente.',
   groups: {
     source: 'Empieza aquí',
     portal: 'Portales de anuncios',
-    brokerage: 'Corredurías y sitios de agentes',
+    brokerage: 'Agencias inmobiliarias y sitios de agentes',
     social: 'Redes sociales y video',
     tour: 'Recorridos 3D y sitios de la propiedad',
     rental: 'Alquileres',
