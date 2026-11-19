@@ -41,7 +41,8 @@ export function demoApi(): Api {
     store: memoryStore(),
     engine: () => ({ provider, lookups }),
     limits: { perIpPer10Min: 1000, perDay: 100000 },
-    promoLimit: 1000,
+    // ?promo=0 shows the paid options (Quick scan and the 12-month plan) instead of the launch offer.
+    promoLimit: typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('promo') === '0' ? 0 : 1000,
     reviewUrl: 'https://www.google.com/search?q=HomePrint+reviews',
   });
   let user: { email: string } | null = null;

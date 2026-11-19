@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseAddress } from '@engine/address.ts';
-import { evaluate, fillQueries, otherUnitInSlug, runScan, siblingCandidates } from '@engine/engine.ts';
+import { evaluate, fillQueries, otherUnitInSlug, retryQueries, runScan, siblingCandidates } from '@engine/engine.ts';
 import { fixtureProvider, type Candidate } from '@engine/providers.ts';
 import { siteFor } from '@engine/sites.ts';
 
@@ -131,5 +131,52 @@ describe('photo labels', () => {
     await labelPhotos(f, null);
     expect(f.filter((x) => x.siteKey === 'zillow').every((x) => x.photos === 'seen')).toBe(true);
     expect(f.find((x) => x.siteKey === 'homes')!.photos).toBe('unknown');
+  });
+});
+
+describe('Nov 19 late-run fixes', () => {
+  it('retries the biggest missing sites one at a time, worded differently, and counts either Coldwell Banker site', () => {
+    const a = parseAddress('5062 Perth St, Denver, CO 80249');
+    const found = evaluate(a, [c('https://www.coldwellbanker.com/co/denver/5062-perth-st/lid-P00800000HFKNtGGaC1zyHdv3dqu1FTjF1CnD61Y', '5062 Perth St, Denver, CO 80249')]);
+    const qs = retryQueries(a, found);
+    expect(qs.map((q) => q.sites![0])).toEqual(['realtor.com', 'homes.com', 'redfin.com', 'century21.com', 'bhhs.com', 'compass.com']);
+    expect(qs[0].phrases).toEqual(['5062 Perth Street']);
+    expect(qs[0].extra).toBe('80249');
+  });
+
+  it('builds the HomeFinder page from Realtor.com as a possible match', () => {
+    const a = parseAddress('89 Montgomery St SE, Atlanta, GA 30317');
+    const r = c('https://www.realtor.com/realestateandhomes-detail/89-Montgomery-St-SE_Atlanta_GA_30317_M65665-52772', '89 Montgomery St SE, Atlanta, GA 30317');
+    const f = evaluate(a, [r, ...siblingCandidates(a, evaluate(a, [r]))]);
+    const hf = f.find((x) => x.siteKey === 'homefinder')!;
+    expect(hf.url).toBe('https://www.homefinder.com/realestateandhomes-detail/89-Montgomery-St-SE_Atlanta_GA_30317_M65665-52772');
+    expect(hf.confidence).toBe('likely');
+  });
+
+  it('reads a ZIP glued to the next word in a Facebook link', () => {
+    const a = parseAddress('14732 San Marsala Ct, Tampa, FL 33626');
+    const f = evaluate(a, [c('https://www.facebook.com/amanda.siftar/posts/sold-in-waterchase-14732-san-marsala-court-33626some-transactions-are-a-pleasure/10235755789937205/', 'Amanda Siftar', '', 'search:social')]);
+    expect(f).toHaveLength(1);
+  });
+
+  it('shares photo labels across sister sites with the same listing id', async () => {
+    const { labelPhotos } = await import('@engine/engine.ts');
+    const a = parseAddress('5062 Perth St, Denver, CO 80249');
+    const lid = 'lid-P00800000HFKNtGGaC1zyHdv3dqu1FTjF1CnD61Y';
+    const f = evaluate(a, [
+      { ...c(`https://www.coldwellbanker.com/co/denver/5062-perth-st/${lid}`, '5062 Perth St, Denver, CO 80249'), thumbnail: 'https://img.example/1.jpg' },
+      c(`https://www.century21.com/homes/detail/co/denver/5062-perth-st/${lid}`, '5062 Perth St, Denver, CO 80249'),
+    ]);
+    await labelPhotos(f, null);
+    expect(f.every((x) => x.photos === 'seen')).toBe(true);
+  });
+
+  it('scores big sites once per site, counting either Coldwell Banker site', async () => {
+    const { siteCoverage } = await import('@engine/selftest.ts');
+    const r = siteCoverage(
+      ['https://www.coldwellbankerhomes.com/co/denver/5062-perth-st/pid_72945706/', 'https://www.zillow.com/homedetails/61469624_zpid/', 'https://www.corcoran.com/listing/for-sale/5062-perth-street-denver-co-80249/109321660/regionId/109'],
+      ['coldwellbanker', 'zillow', 'zillow'],
+    );
+    expect(r).toEqual({ sitesExpected: 3, sitesFound: 2, sitesMissed: ['corcoran'] });
   });
 });
