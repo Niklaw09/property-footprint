@@ -2,7 +2,7 @@
 
 import { type Address, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
 import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
-import { SITES, SEARCH_GROUPS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, siteFor, unknownSite } from './sites.ts';
+import { SITES, SEARCH_GROUPS, LONGTAIL_EXCLUDE, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, needsPropertyUrl, siteFor, unknownSite, urlNamesProperty } from './sites.ts';
 
 export interface Finding {
   id: string; // stable hash of the canonical URL
@@ -58,6 +58,9 @@ export function buildQueries(a: Address): SearchQuery[] {
     { label: 'zip', kind: 'web', phrases, extra: a.zip ?? a.city },
     ...SEARCH_GROUPS.map((g) => ({ label: g.label, kind: 'web' as const, phrases, extra: a.city, sites: g.domains })),
     { label: 'media_words', kind: 'web', phrases, extra: `${a.city} ("virtual tour" OR "3D tour" OR "floor plan" OR video OR photos)` },
+    // The big portals fill the first page of every search. Leaving them out surfaces the agent and IDX sites behind them.
+    { label: 'longtail', kind: 'web', phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), exclude: LONGTAIL_EXCLUDE },
+    { label: 'general_p2', kind: 'web', phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), page: 2 },
     { label: 'images', kind: 'images', phrases, extra: loc },
     { label: 'videos', kind: 'videos', phrases, extra: a.city },
     // Plain-text searches that stand in for the site: searches on search plans that don't allow operators.
@@ -111,12 +114,18 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
     const site = siteFor(c.url) ?? unknownSite(c.url);
     const isLookup = c.via.startsWith('lookup:');
     if (!isLookup && !isDetailPage(site, c.url)) { bump('not_a_property_page'); continue; }
+    // Agent sites we have no rules for: the URL must point at one property, not an area page that mentions ours.
+    if (!isLookup && needsPropertyUrl(site) && !urlNamesProperty(c.url, a.number)) { bump('not_a_property_page'); continue; }
 
     // Match on the URL slug first (strongest), then on URL + title + snippet.
     const slug = urlText(c.url);
     const text = isLookup ? `${c.addressText ?? ''}` : `${slug} | ${c.title} | ${c.snippet}`;
     const m = matchAddress(a, text);
     if (m.level === 'none') { bump('address_mismatch'); continue; }
+    // Social posts and videos: a search snippet can quote a page's other posts. Only call it exact when
+    // the post's own link or title names the home; a snippet-only match is shown as a possible match.
+    if (!isLookup && m.level === 'exact' && (site.category === 'social' || site.category === 'video')
+      && matchAddress(a, `${slug} | ${c.title}`).level === 'none') m.level = 'likely';
     // A slug that names a *different* house number on the same street is a different property even if the snippet mentions ours.
     if (!isLookup && slugContradicts(a, slug)) { bump('slug_contradiction'); continue; }
 
@@ -179,6 +188,35 @@ function slugContradicts(a: Address, slug: string): boolean {
     }
   }
   return true;
+}
+
+const ZILLOW_FAMILY = new Set(['zillow', 'trulia', 'hotpads']); // share Zillow's property ids, not MLS numbers
+
+/**
+ * MLS numbers for this home: ids in the URLs of exact matches on at least two unrelated sites
+ * (e.g. "3777682" in atproperties.com/3777682/... and bhhstx.com/property/105-3777682-...). Up to two.
+ */
+export function listingIds(findings: Finding[]): string[] {
+  const byCore = new Map<string, { sites: Set<string>; forms: Map<string, number> }>();
+  for (const f of findings) {
+    if (f.confidence !== 'exact') continue;
+    let path = '';
+    try { const u = new URL(f.url); path = decodeURIComponent(u.pathname + u.search).toLowerCase(); } catch { continue; }
+    const site = ZILLOW_FAMILY.has(f.siteKey) ? 'zillow' : f.domain.split('.').slice(-2).join('.');
+    for (const t of new Set(path.split(/[^a-z0-9]+/))) {
+      const m = t.match(/^([a-z]{0,5}?)(\d{6,9})$/);
+      if (!m) continue;
+      const e = byCore.get(m[2]) ?? { sites: new Set<string>(), forms: new Map<string, number>() };
+      e.sites.add(site);
+      e.forms.set(t, (e.forms.get(t) ?? 0) + 1);
+      byCore.set(m[2], e);
+    }
+  }
+  return [...byCore.values()]
+    .filter((e) => [...e.sites].filter((x) => x !== 'zillow').length >= 2)
+    .sort((x, y) => y.sites.size - x.sites.size)
+    .slice(0, 2)
+    .map((e) => [...e.forms].sort((x, y) => y[1] - x[1] || x[0].length - y[0].length)[0][0]);
 }
 
 function addCoveredSiblings(findings: Finding[]): Finding[] {
@@ -261,6 +299,16 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
     }
   };
   await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 5 }, worker)]);
+
+  // Second round: search the listing's MLS number. Many agent sites (Real Geeks and other IDX sites) name
+  // the page after it, and Google ranks them low for the street address.
+  if (opts.provider) {
+    const ids = listingIds(evaluate(a, candidates, {}));
+    const pivots = ids.map((id) => ({ label: 'mls_id', kind: 'web' as const, phrases: [id.toUpperCase()], extra: a.city }));
+    diagnostics.queries += pivots.length;
+    queue.push(...pivots);
+    await Promise.all(Array.from({ length: Math.min(pivots.length, opts.concurrency ?? 5) }, worker));
+  }
 
   diagnostics.searchMode = opts.provider?.mode?.();
   diagnostics.candidates = candidates.length;

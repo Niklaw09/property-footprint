@@ -142,10 +142,14 @@ export function unknownSite(url: string): Site {
   return { key: `web:${host}`, name: host, domains: [host], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' };
 }
 
+// Area pages that list many homes, on any site: neighborhoods, communities, subdivisions, points of interest, schools.
+const AREA_PAGE = /\/(neighbou?rhoods?|communit(y|ies)|subdivisions?|points-of-interest|schools?|market-(report|trends))(\/|$)/i;
+
 export function isDetailPage(site: Site, url: string): boolean {
-  if (!site.detail) return true;
   try {
     const u = new URL(url);
+    if (site.category !== 'social' && site.category !== 'video' && AREA_PAGE.test(u.pathname)) return false;
+    if (!site.detail) return true;
     return site.detail.test(u.pathname + u.search) || site.detail.test(url);
   } catch {
     return false;
@@ -173,11 +177,40 @@ export function canonicalUrl(url: string): string {
 /** Groups of sites searched together with (site:a OR site:b ...) — keeps the query budget small. */
 export const SEARCH_GROUPS: { label: string; domains: string[] }[] = [
   { label: 'portals', domains: ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'homes.com', 'movoto.com', 'estately.com'] },
-  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'remax.com', 'kw.com', 'bhhs.com', 'sothebysrealty.com', 'har.com', 'realgeeks.com', 'houzeo.com'] },
+  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'remax.com', 'kw.com', 'bhhs.com', 'sothebysrealty.com', 'har.com', 'exprealty.com', 'atproperties.com'] },
+  // Listing sites that the bigger portals crowd out of the brokerages search; the Nov 2026 runs missed these most.
+  { label: 'idx_sites', domains: ['realgeeks.com', 'estately.com', 'houzeo.com', 'unionstmedia.com', 'beycome.com', 'bexrealty.com', 'idxbroker.com', 'lofty.me'] },
   { label: 'tours', domains: ['matterport.com', 'youriguide.com', 'aryeo.com', 'hdphotohub.com', 'tourbuzz.net', 'cloudpano.com', 'kuula.co', 'listing.photos', 'spiro.media', 'propertypanorama.com'] },
   { label: 'video_social', domains: ['youtube.com', 'vimeo.com', 'facebook.com', 'instagram.com', 'pinterest.com', 'tiktok.com'] },
   { label: 'rentals', domains: ['apartments.com', 'hotpads.com', 'zumper.com', 'rent.com', 'craigslist.org'] },
 ];
+
+/**
+ * True when the URL itself points at one property: it names the house number, or carries a listing id
+ * (5+ digits, or letters followed by 6+ digits like an MLS number "TB8543033").
+ * Used for agent sites we have no rules for, where a page about a neighborhood can mention our address in passing.
+ */
+export function urlNamesProperty(url: string, houseNumber: string): boolean {
+  let path = '';
+  try {
+    const u = new URL(url);
+    path = decodeURIComponent(u.pathname + u.search).toLowerCase();
+  } catch {
+    return false;
+  }
+  const toks = path.split(/[^a-z0-9]+/).filter(Boolean);
+  const num = houseNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (num && toks.includes(num)) return true;
+  return toks.some((t) => /^\d{5,}$/.test(t) || /^[a-z]{1,6}\d{6,}[a-z]?$/.test(t) || /^[a-z0-9]{10,}$/.test(t) && /\d/.test(t) && /[a-z]/.test(t));
+}
+
+/** Sites whose pages need the URL itself to point at one property (see urlNamesProperty). */
+export function needsPropertyUrl(site: Site): boolean {
+  return !site.detail && (site.category === 'brokerage' || site.category === 'portal' || site.category === 'rental' || site.category === 'other');
+}
+
+/** Sites left out of the 'longtail' search: they fill the first page of every search and are covered by other searches. */
+export const LONGTAIL_EXCLUDE = ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'homes.com', 'movoto.com', 'compass.com', 'coldwellbankerhomes.com', 'facebook.com', 'instagram.com', 'youtube.com'];
 
 export function siteByKey(key: string): Site | undefined {
   return SITES.find((s) => s.key === key);

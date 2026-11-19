@@ -19,6 +19,10 @@ export interface SearchQuery {
   num?: number;
   /** Extra plain-text search, only worth running when the full operator searches aren't allowed. */
   fallbackOnly?: boolean;
+  /** Leave these domains out (-site:), to see past sites that fill every first page. */
+  exclude?: string[];
+  /** Results page, from 1. */
+  page?: number;
 }
 
 export interface SearchProvider {
@@ -47,6 +51,7 @@ export function renderGoogleQuery(q: SearchQuery): string {
   let s = phrases.length > 1 ? `(${phrases.join(' OR ')})` : phrases[0] ?? '';
   if (q.extra) s += ` ${q.extra}`;
   if (q.sites?.length) s += q.sites.length === 1 ? ` site:${q.sites[0]}` : ` (${q.sites.map((d) => `site:${d}`).join(' OR ')})`;
+  if (q.exclude?.length) s += ' ' + q.exclude.map((d) => `-site:${d}`).join(' ');
   return s.trim();
 }
 
@@ -59,7 +64,7 @@ export function renderGoogleQuery(q: SearchQuery): string {
 // Plain words that steer each simplified search toward the sites its full version targeted.
 const PLAIN_HINTS: Record<string, string> = {
   portals: 'home for sale', brokerages: 'realtor listing', tours: 'virtual tour', video_social: 'video',
-  rentals: 'for rent', media_words: 'photos', zip: 'listing',
+  rentals: 'for rent', media_words: 'photos', zip: 'listing', idx_sites: 'MLS listing details', longtail: 'real estate',
   plain_mls: 'MLS', plain_sold: 'sold', plain_idx: 'property details beds baths', plain_agent: 'realty',
 };
 // Use the other spelling of the street ("Dr" vs "Drive") for some, so the simplified searches don't all repeat.
@@ -99,14 +104,14 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
   if (state.level > 0 && Date.now() - state.at > REPROBE_MS) { state.level = 0; state.at = Date.now(); }
   accountState.set(apiKey, state);
   const seen = new Map<string, Promise<any>>();
-  async function call(endpoint: string, text: string, num: number, signal?: AbortSignal, attempt = 0): Promise<any> {
+  async function call(endpoint: string, text: string, num: number, page: number, signal?: AbortSignal, attempt = 0): Promise<any> {
     let res: Response;
     await serperSlot();
     try {
       res = await fetchFn(`https://google.serper.dev/${endpoint}`, {
         method: 'POST',
         headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: text, num, gl: 'us', hl: 'en' }),
+        body: JSON.stringify({ q: text, num, gl: 'us', hl: 'en', ...(page > 1 ? { page } : {}) }),
         signal,
       });
     } catch (e) {
@@ -114,7 +119,7 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
     }
     if (res.status === 429 && attempt < 2) {
       await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-      return call(endpoint, text, num, signal, attempt + 1);
+      return call(endpoint, text, num, page, signal, attempt + 1);
     }
     if (!res.ok) {
       const err = classify('serper', res.status);
@@ -134,15 +139,16 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
       for (;;) {
         const level = q.fallbackOnly ? Math.max(1, state.level) : state.level;
         const text = simplifyQuery(q, level);
-        const key = `${endpoint}|${text}`;
+        const page = q.page ?? 1;
+        const key = `${endpoint}|${page}|${text}`;
         let p = seen.get(key);
         if (!p) {
-          p = call(endpoint, text, level > 0 ? 10 : q.num ?? 20, signal);
+          p = call(endpoint, text, level > 0 ? 10 : q.num ?? 20, page, signal);
           seen.set(key, p);
         }
         try {
           data = await p;
-          if (level === 0 && (q.sites?.length || q.phrases.length > 1)) state.fullOk = true;
+          if (level === 0 && (q.sites?.length || q.exclude?.length || q.phrases.length > 1)) state.fullOk = true;
           break;
         } catch (e) {
           if (e instanceof ProviderError && RESTRICTED.test(e.message) && level < 2) {
@@ -195,7 +201,7 @@ export function braveProvider(apiKey: string, fetchFn: FetchLike = fetch): Searc
   return {
     name: 'brave',
     async search(q, signal) {
-      if (q.fallbackOnly) return [];
+      if (q.fallbackOnly || (q.page ?? 1) > 1) return [];
       const base = renderGoogleQuery({ ...q, sites: undefined });
       if (!q.sites?.length) return one(base, q.kind, q.label, signal);
       const out: Candidate[] = [];

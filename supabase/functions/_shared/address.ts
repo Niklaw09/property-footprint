@@ -306,8 +306,9 @@ export function matchAddress(a: Address, text: string): MatchResult {
     const bare = toks[k];
     if (!textUnit && bare && /^(\d{1,4}[a-z]?|[a-z]\d{1,3})$/.test(bare) && !/^\d{5}$/.test(bare)) textUnit = bare;
     if (a.unit && !textUnit && !toks.includes(a.unit)) {
-      // "... minneapolis mn unit 304": a different unit named later in the text, and ours nowhere.
-      for (let j = k; j < toks.length - 1; j++) {
+      // "... minneapolis mn unit 304": a different unit named anywhere in the text (the slug, when the
+      // address match came from the snippet), and ours nowhere.
+      for (let j = 0; j < toks.length - 1; j++) {
         if ((toks[j] === '#' || toks[j] === 'unit' || toks[j] === 'apt' || toks[j] === 'apartment' || toks[j] === 'ste' || toks[j] === 'suite') && /^[a-z]?\d{1,4}[a-z]?$/.test(toks[j + 1])) { textUnit = toks[j + 1]; break; }
       }
     }

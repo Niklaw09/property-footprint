@@ -81,8 +81,8 @@ describe('runScan', () => {
   it('builds compact Google queries', () => {
     const q = buildQueries(a).find((x) => x.label === 'portals')!;
     expect(renderGoogleQuery(q)).toBe('("89 Montgomery St SE" OR "89 Montgomery Street Southeast" OR "89 Montgomery St") Atlanta (site:zillow.com OR site:redfin.com OR site:realtor.com OR site:trulia.com OR site:homes.com OR site:movoto.com OR site:estately.com)');
-    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(12); // full-operator plans
-    expect(buildQueries(a).length).toBeLessThanOrEqual(16);
+    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(13); // full-operator plans, plus up to 2 MLS searches
+    expect(buildQueries(a).length).toBeLessThanOrEqual(17);
   });
 });
 
@@ -97,5 +97,7 @@ describe('selftest', () => {
     expect(r.rows).toHaveLength(SELFTEST_HOMES.length);
     expect(r.rows.find((x) => x.address.startsWith('14425'))!.found).toBe(1);
     expect(r.found).toBe(1);
+    expect(r.origFound).toBe(1);
+    expect(r.expected).toBeGreaterThan(r.origExpected); // confirmed pages count toward the headline
   });
 });
