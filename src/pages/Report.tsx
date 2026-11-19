@@ -110,39 +110,43 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       {/* Summary */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm text-navy-500">{t.reportFor}</p>
-          <h1 className="mt-1 flex items-start gap-2 font-serif text-2xl font-semibold text-navy-900 sm:text-3xl"><MapPin className="mt-1.5 h-5 w-5 shrink-0 text-sage-600" />{view.display}</h1>
-          <p className="mt-1 text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="eyebrow">{t.reportFor}</p>
+          <h1 className="mt-2 flex items-start gap-2 font-display text-[clamp(1.5rem,6vw,2.1rem)] font-bold leading-tight text-navy-900"><MapPin className="mt-1 h-5 w-5 shrink-0 text-sage-600 sm:mt-2" />{view.display}</h1>
+          <p className="mt-1.5 font-mono text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
         </div>
-        <a href={href({ name: 'home' })} className="btn-secondary self-start md:self-auto">{t.scanAnother}</a>
+        <a href={href({ name: 'home' })} className="btn-secondary self-start py-2.5 sm:self-auto"><Search className="h-4 w-4" />{t.scanAnother}</a>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-[1.2fr_2fr]">
-        <div className="card flex flex-col justify-center">
-          <p className="font-serif text-5xl font-semibold text-navy-900">{view.counts.total}</p>
-          <p className="mt-1 text-sm text-navy-500">{t.sourcesFound}</p>
-          {view.unlocked && view.counts.total + view.counts.gone > 0 && (
-            <div className="mt-4">
-              <div className="h-2 overflow-hidden rounded-full bg-navy-50">
-                <div className="h-full rounded-full bg-sage-500 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
+      <div className="mt-6 overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-soft">
+        <div className="grid sm:grid-cols-[1fr_2fr]">
+          <div className="relative flex flex-col justify-center overflow-hidden bg-navy-900 p-5 text-white sm:p-6">
+            <div className="grid-bg absolute inset-0 opacity-40 invert" />
+            <p className="relative num text-6xl font-semibold leading-none tracking-tight">{view.counts.total}</p>
+            <p className="relative mt-2 text-sm text-navy-200">{t.sourcesFound}</p>
+            {view.unlocked && view.counts.total + view.counts.gone > 0 && (
+              <div className="relative mt-4">
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-sage-400 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
+                </div>
+                <p className="mt-1.5 font-mono text-xs text-navy-300">{removedCount} / {open.length} {t.progressLabel}</p>
               </div>
-              <p className="mt-1 text-xs text-navy-500">{removedCount} / {open.length} {t.progressLabel}</p>
-            </div>
-          )}
-        </div>
-        <div className="card grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(['photos', 'tour', 'video', 'floorplan'] as MediaType[]).map((m) => {
-            const Icon = MEDIA_ICON[m];
-            return (
-              <div key={m}>
-                <Icon className="h-5 w-5 text-sage-600" />
-                <p className="mt-2 text-2xl font-semibold text-navy-900">{view.counts.byMedia[m] ?? 0}</p>
-                <p className="text-xs text-navy-500">{mediaLabel(m, t)}</p>
-              </div>
-            );
-          })}
+            )}
+          </div>
+          <div className="grid grid-cols-2 divide-navy-100 sm:grid-cols-4 sm:divide-x">
+            {(['photos', 'tour', 'video', 'floorplan'] as MediaType[]).map((m, i) => {
+              const Icon = MEDIA_ICON[m];
+              const n = view.counts.byMedia[m] ?? 0;
+              return (
+                <div key={m} className={`p-4 sm:p-5 ${i < 2 ? 'border-b border-navy-100 sm:border-b-0' : ''} ${i % 2 === 0 ? 'border-r border-navy-100 sm:border-r-0' : ''}`}>
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${n ? 'bg-sage-50 text-sage-700' : 'bg-cream-100 text-navy-300'}`}><Icon className="h-4 w-4" /></span>
+                  <p className={`num mt-3 text-2xl font-semibold ${n ? 'text-navy-900' : 'text-navy-300'}`}>{n}</p>
+                  <p className="text-xs text-navy-500">{mediaLabel(m, t)}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -181,7 +185,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
         const cap = c === 'brokerage' && items.length > COLLAPSE_AFTER && !showAll[c] ? COLLAPSE_AFTER : items.length;
         return (
         <section key={c} className="mt-10">
-          <h2 className="section-title">{catLabel(c, t)} <span className="ml-1 text-base font-normal text-navy-400">{items.length}</span></h2>
+          <h2 className="section-title">{catLabel(c, t)} <span className="num ml-1.5 rounded-md bg-navy-50 px-1.5 py-0.5 align-middle text-xs font-semibold text-navy-500">{items.length}</span></h2>
           {c === 'brokerage' && items.length > 3 && (
             <p className="mt-1 text-sm text-navy-500">
               {t.agentSitesNote}{' '}
