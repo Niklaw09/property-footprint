@@ -1,5 +1,5 @@
 // In-memory Store for tests and the in-browser demo.
-import type { EntitlementRow, FindingRow, MembershipRow, ReportRow, RunRow, Store, TaskRow } from './service.ts';
+import type { EntitlementRow, FindingRow, MembershipRow, ReportRow, ReviewRow, RunRow, Store, TaskRow } from './service.ts';
 
 export function memoryStore(): Store & { dump(): unknown } {
   const reports = new Map<string, ReportRow>();
@@ -11,6 +11,8 @@ export function memoryStore(): Store & { dump(): unknown } {
   const buckets = new Map<string, number>();
   const ents = new Map<string, EntitlementRow>();
   const sessions = new Set<string>();
+  const reviews = new Map<string, ReviewRow>();
+  const allEnts: EntitlementRow[] = [];
   let seq = 0;
   const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
 
@@ -90,7 +92,9 @@ export function memoryStore(): Store & { dump(): unknown } {
     async grantEntitlement(row) {
       if (sessions.has(row.session_id)) return false;
       sessions.add(row.session_id);
-      ents.set(`${row.user_id}:${row.report_id}`, clone(row));
+      const r = { review_email_sent_at: null, ...clone(row) };
+      ents.set(`${row.user_id}:${row.report_id}`, r);
+      allEnts.push(r);
       return true;
     },
     async countRuns(reportId, kind, sinceIso) {
@@ -100,6 +104,22 @@ export function memoryStore(): Store & { dump(): unknown } {
       const paid = new Set([...ents.values()].filter((e) => e.paid_until > nowIso).map((e) => `${e.user_id}:${e.report_id}`));
       const monitored = new Set([...members.values()].filter((m) => m.monitor && paid.has(`${m.user_id}:${m.report_id}`)).map((m) => m.report_id));
       return [...reports.values()].filter((r) => monitored.has(r.id) && r.next_scan_at && r.next_scan_at <= nowIso).slice(0, limit).map(clone);
+    },
+    async peekBucket(bucket) {
+      return buckets.get(bucket) ?? 0;
+    },
+    async getReview(userId) {
+      const r = reviews.get(userId);
+      return r ? clone(r) : null;
+    },
+    async upsertReview(row) {
+      reviews.set(row.user_id, clone(row));
+    },
+    async dueReviewEmails(fromIso, toIso, limit) {
+      return allEnts.filter((e) => !e.review_email_sent_at && e.paid_at >= fromIso && e.paid_at <= toIso).slice(0, limit).map(clone);
+    },
+    async markReviewEmailSent(sessionId, atIso) {
+      for (const e of allEnts) if (e.session_id === sessionId) e.review_email_sent_at = atIso;
     },
     dump() {
       return { reports: [...reports.values()], findings: [...findings.values()], members: [...members.values()], tasks: [...tasks.values()], runs };

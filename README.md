@@ -7,6 +7,8 @@ Find every website still showing a home's listing photos, 3D tours, videos and f
 - **30 removal playbooks** (English and Spanish) with direct links, contacts, sources and a "checked on" date, plus 5 pre-written request letters (site support, listing agent/MLS, photographer, formal privacy request, uploader).
 - **$19.99 per home (Stripe Checkout)**: a one-time payment unlocks every link, the removal steps and letters, request tracking (to do, sent, waiting, removed, can't remove) and saves the home to the account for 12 months. No subscription. Payment is enforced on the server.
 - **Re-checks twice a month**: paid, monitored homes are re-scanned every 15 days for 12 months, plus 2 on-demand scans per 30 days (at least 12 hours apart). Pages that disappear are checked directly (404/410 = verified gone).
+- **Launch offer**: the first 1,000 homes unlock free (one per account), with a live "spots left" counter on the home page and report. Set `PROMO_FREE_LIMIT` to change the number, or `0` to end it. Scan limits and the daily cap still apply.
+- **Reviews (optional, never rewarded)**: after someone starts on their requests, the report asks for a 1 to 5 star review and links to Google. About a week after a home is unlocked, one follow-up email asks the same. Reviews are never required for the free unlock or anything else, and everyone sees the Google link whatever they rated, since Google and the FTC ban incentivized and filtered ("gated") reviews. On-site reviews are stored privately in `reviews`; nothing is published on the site.
 - **Locked results enforced on the server**: anonymous visitors get counts and one preview; locked results never include URLs in the response.
 - **Abuse protection**: Cloudflare Turnstile bot check on every scan (invisible for most people), plus limits: 3 new scans per device per day without an account, 10 per day per account, 6 per 10 minutes per IP, 25 homes per account and a site-wide daily cap (default 300). Re-scanning an address someone already scanned in the last 24 hours reuses that result, costs nothing and doesn't count. IPs are stored only as salted hashes.
 - **Demo mode**: with no backend configured, the app runs the real engine in the browser against a recorded sample (a real Austin home from the accuracy test).
@@ -27,13 +29,14 @@ SERPER_API_KEY=... npx vitest run tests/live-accuracy.test.ts
 
 ## Deploy
 
-1. **Supabase project**: create one (a fresh project is cleanest), then apply both files in `supabase/migrations/` in order (SQL editor or `supabase db push`).
+1. **Supabase project**: create one (a fresh project is cleanest), then apply every file in `supabase/migrations/` in order (SQL editor or `supabase db push`).
 2. **Auth**: Authentication → Providers → Email: enable. Under URL Configuration add your site URL (for example `https://your-site.netlify.app`) to the redirect allow list.
 3. **Edge Functions**: `supabase functions deploy api` and `supabase functions deploy stripe-webhook` (the `supabase/config.toml` turns off the gateway JWT check; `api` verifies users itself and the webhook verifies Stripe's signature).
 4. **Secrets**: `supabase secrets set SERPER_API_KEY=... CRON_SECRET=<random string> IP_HASH_SALT=<random string> TURNSTILE_SECRET_KEY=...` (optional `BRAVE_API_KEY`, `SCAN_DAILY_LIMIT`, default 300/day). Create the Turnstile widget (free) in Cloudflare → Turnstile, add your site's domain, and put its site key in `VITE_TURNSTILE_SITE_KEY`.
 5. **Stripe**: in the Stripe dashboard → Developers → Webhooks, add the endpoint `https://<project-ref>.supabase.co/functions/v1/stripe-webhook` with events `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Then set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (the endpoint's signing secret) and `SITE_URL` (your site's address, used for the return links) as Supabase secrets. Optional: `STRIPE_PRICE_ID` to use a Price from your Stripe catalog, `PRICE_CENTS` (default 1999). Use test-mode keys first.
-6. **Re-checks**: enable the `pg_cron` and `pg_net` extensions and run the `cron.schedule(...)` snippet at the bottom of the migration with your project ref and `CRON_SECRET`.
-7. **Frontend** (Bolt, Netlify or Vercel): build command `npm run build`, output `dist`, env vars `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_TURNSTILE_SITE_KEY`.
+6. **Launch offer and review emails** (optional): `PROMO_FREE_LIMIT` (default 1000), `GOOGLE_REVIEW_URL` (your Google Business Profile's "Ask for reviews" link), and for the follow-up email `RESEND_API_KEY` plus `EMAIL_FROM` (for example `HomePrint <hello@homeprint.online>`, after verifying the domain in [Resend](https://resend.com)). Without the Resend settings, no emails are sent. The email goes out from the hourly re-check job.
+7. **Re-checks**: enable the `pg_cron` and `pg_net` extensions and run the `cron.schedule(...)` snippet at the bottom of the migration with your project ref and `CRON_SECRET`.
+8. **Frontend** (Bolt, Netlify or Vercel): build command `npm run build`, output `dist`, env vars `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_TURNSTILE_SITE_KEY`.
 
 ### Bolt
 

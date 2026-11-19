@@ -41,6 +41,8 @@ export function demoApi(): Api {
     store: memoryStore(),
     engine: () => ({ provider, lookups }),
     limits: { perIpPer10Min: 1000, perDay: 100000 },
+    promoLimit: 1000,
+    reviewUrl: 'https://www.google.com/search?q=HomePrint+reviews',
   });
   let user: { email: string } | null = null;
   const listeners = new Set<(u: { email: string } | null) => void>();
@@ -70,6 +72,9 @@ export function demoApi(): Api {
       return `#/r/${id}`;
     },
     async confirm() { return { ok: true }; },
+    async claimPromo(id) { await delay(400); return wrap(() => svc.claimPromo({ userId: uid()!, reportId: id })); },
+    async review(id, rating, comment) { await wrap(() => svc.submitReview({ userId: uid()!, reportId: id, rating, comment })); },
+    promo: () => svc.promoStatus(),
     async session() { return user; },
     onAuth(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     async sendMagicLink(email) {

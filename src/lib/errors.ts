@@ -15,6 +15,9 @@ export function errorText(e: unknown, t: Strings): string {
     case 'limit_homes': return t.errLimitHomes;
     case 'captcha': return t.errCaptcha;
     case 'payment_required': return t.errPayment;
+    case 'promo_over': return t.errPromoOver;
+    case 'promo_used': return t.errPromoUsed;
+    case 'invalid_review': return t.errReview;
     default: return t.errGeneric;
   }
 }

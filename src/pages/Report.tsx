@@ -41,6 +41,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   const [drawer, setDrawer] = useState<Drawer | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [buying, setBuying] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -61,12 +62,18 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   if (error) return <div className="mx-auto max-w-3xl px-5 py-16 text-center text-navy-600">{error}</div>;
   if (!view) return <div className="flex justify-center py-24"><Loader2 className="h-6 w-6 animate-spin text-sage-600" /></div>;
 
-  const [buying, setBuying] = useState(false);
   const unlock = async () => {
     if (!ctx.user) { go({ name: 'signin', next: `#/r/${id}` }); return; }
     setBuying(true);
     setNotice(null);
     try {
+      if (promoOpen(view)) {
+        const v = await ctx.api.claimPromo(view.id, lang);
+        claims.clear(view.id);
+        setView(v);
+        setBuying(false);
+        return;
+      }
       const url = await ctx.api.checkout(view.id, lang);
       if (url.startsWith('#')) { window.location.hash = url; await load(); setBuying(false); } else window.location.href = url;
     } catch (e) {
@@ -139,6 +146,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       {view.unlocked && view.paidUntil && (
         <p className="mt-3 text-xs text-navy-500">{t.paidUntil} {fmtDate(view.paidUntil, lang)}</p>
       )}
+      {view.unlocked && view.review && <ReviewCard view={view} ctx={ctx} started={view.findings.some((f) => !f.locked && f.task && f.task.status !== 'todo')} />}
 
       {view.counts.total === 0 && (
         <div className="card mt-6">
@@ -301,23 +309,90 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
   );
 }
 
+const promoOpen = (view: ReportView) => !!view.promo && view.promo.left > 0 && !view.promo.usedByYou;
+
 function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportView; signedIn: boolean; buying: boolean; onUnlock: () => void; notice: string | null }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const dollars = `$${(view.price.cents / 100).toFixed(view.price.cents % 100 ? 2 : 0)}`;
+  const free = promoOpen(view);
+  const n = (x: number) => x.toLocaleString(lang === 'es' ? 'es-US' : 'en-US');
   return (
     <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
       <div>
-        <h2 className="font-serif text-lg font-semibold text-navy-900">{t.priceTitle.replace('{price}', dollars)}</h2>
+        {free && (
+          <p className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-sage-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+            {t.promoBadge.replace('{left}', n(view.promo!.left)).replace('{total}', n(view.promo!.total))}
+          </p>
+        )}
+        <h2 className="font-serif text-lg font-semibold text-navy-900">
+          {free ? <>{t.promoTitle} <span className="font-sans text-base font-normal text-navy-400 line-through">{dollars}</span></> : t.priceTitle.replace('{price}', dollars)}
+        </h2>
         <ul className="mt-2 grid gap-1 text-sm text-navy-700 sm:grid-cols-2">
           {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
         </ul>
-        <p className="mt-2 text-xs text-navy-500">{t.priceNote}</p>
+        <p className="mt-2 text-xs text-navy-500">{free ? t.promoNote.replace('{total}', n(view.promo!.total)) : t.priceNote}</p>
         {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
       </div>
       <button onClick={onUnlock} disabled={buying} className="btn-primary mt-4 shrink-0 sm:mt-0">
         {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
-        {signedIn ? t.buyCta.replace('{price}', dollars) : t.signInToBuy}
+        {free ? (signedIn ? t.promoCta : t.promoSignIn) : signedIn ? t.buyCta.replace('{price}', dollars) : t.signInToBuy}
       </button>
+    </div>
+  );
+}
+
+/** Optional review. Shown to everyone who unlocked, after they've started on their requests. Never tied to the offer. */
+function ReviewCard({ view, ctx, started }: { view: ReportView; ctx: AppCtx; started: boolean }) {
+  const { t } = useLang();
+  const key = `pf.review.hide.${view.id}`;
+  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(key) === '1'; } catch { return false; } });
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [state, setState] = useState<'form' | 'saving' | 'done'>(view.review?.done ? 'done' : 'form');
+  const [err, setErr] = useState<string | null>(null);
+  if (!view.review || hidden || (!started && state !== 'done')) return null;
+  if (view.review.done && !view.review.googleUrl) return null;
+  const google = view.review.googleUrl;
+  const hide = () => { try { localStorage.setItem(key, '1'); } catch { /* ignore */ } setHidden(true); };
+  const submit = async () => {
+    setState('saving');
+    setErr(null);
+    try { await ctx.api.review(view.id, rating, comment); setState('done'); } catch (e) { setErr(errorText(e, t)); setState('form'); }
+  };
+  return (
+    <div className="card mt-6">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-serif text-lg font-semibold text-navy-900">{state === 'done' ? t.reviewThanks : t.reviewTitle}</h2>
+        <button onClick={hide} aria-label={t.reviewHide} className="rounded p-1 text-navy-400 hover:text-navy-700"><X className="h-4 w-4" /></button>
+      </div>
+      {state !== 'done' ? (
+        <>
+          <p className="mt-1 text-sm text-navy-600">{t.reviewBody}</p>
+          <div className="mt-3 flex gap-1" role="radiogroup" aria-label={t.reviewTitle}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} role="radio" aria-checked={rating === n} aria-label={`${n}`} onClick={() => setRating(n)}
+                className={`text-2xl leading-none ${n <= rating ? 'text-amber-500' : 'text-navy-200 hover:text-amber-300'}`}>★</button>
+            ))}
+          </div>
+          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} maxLength={2000} placeholder={t.reviewPlaceholder}
+            className="mt-3 w-full rounded-lg border border-navy-100 bg-white p-3 text-sm text-navy-800 focus:border-sage-400 focus:outline-none" />
+          {err && <p className="mt-2 text-xs text-red-700">{err}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button onClick={submit} disabled={!rating || state === 'saving'} className="btn-primary py-2 text-sm">
+              {state === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}{t.reviewSend}
+            </button>
+            {google && <a href={google} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sage-700 underline underline-offset-2">{t.reviewGoogle}</a>}
+          </div>
+        </>
+      ) : (
+        google && (
+          <p className="mt-1 text-sm text-navy-600">
+            {t.reviewGoogleAsk}{' '}
+            <a href={google} target="_blank" rel="noopener noreferrer" className="font-medium text-sage-700 underline underline-offset-2">{t.reviewGoogle}</a>
+          </p>
+        )
+      )}
+      <p className="mt-3 text-xs text-navy-400">{t.reviewOptional}</p>
     </div>
   );
 }

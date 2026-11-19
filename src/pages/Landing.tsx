@@ -17,6 +17,8 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
   const needsCaptcha = captchaEnabled && ctx.api.mode === 'live';
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promo, setPromo] = useState<{ left: number; total: number } | null>(null);
+  useEffect(() => { ctx.api.promo().then((p) => setPromo(p && p.left > 0 ? p : null)).catch(() => {}); }, [ctx.api]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +59,11 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
               </div>
               {needsCaptcha && <Turnstile onToken={setCaptcha} lang={lang} handle={turnstile} />}
               <p className="mt-2 text-xs text-navy-400">{t.heroHint}</p>
+              {promo && (
+                <p className="mt-2 inline-block rounded-full bg-sage-100 px-3 py-1 text-xs font-semibold text-sage-800">
+                  {t.promoLanding.replace('{total}', promo.total.toLocaleString(lang === 'es' ? 'es-US' : 'en-US')).replace('{left}', promo.left.toLocaleString(lang === 'es' ? 'es-US' : 'en-US'))}
+                </p>
+              )}
               {error && (
                 <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
