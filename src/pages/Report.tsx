@@ -277,6 +277,7 @@ function Evidence({ f }: { f: OpenFinding }) {
   const { t } = useLang();
   const parts: string[] = [];
   if (f.evidence.includes('portal_lookup')) parts.push(t.evLookup);
+  if (f.evidence.includes('same_listing_id')) parts.push(t.evSameListing);
   if (f.evidence.includes('street')) parts.push(t.evStreet);
   if (f.evidence.includes('unit')) parts.push(t.evUnit);
   if (f.evidence.includes('zip')) parts.push(t.evZip);

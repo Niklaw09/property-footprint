@@ -31,6 +31,8 @@ export const SITES: Site[] = [
   { key: 'hotpads', name: 'HotPads', domains: ['hotpads.com'], category: 'rental', media: ['listing', 'photos'], detail: /\/[^/]+\/(pad|building)/, playbook: 'zillow_rentals' },
   { key: 'redfin', name: 'Redfin', domains: ['redfin.com'], category: 'portal', media: ['listing', 'photos'], detail: /\/home\/\d+/, playbook: 'redfin' },
   { key: 'realtor', name: 'Realtor.com', domains: ['realtor.com'], category: 'portal', media: ['listing', 'photos'], detail: /realestateandhomes-detail|\/rentals\/details\//, playbook: 'realtor' },
+  // Homefinder is run by Realtor.com's owner and shares its property ids; removing on Realtor.com covers it.
+  { key: 'homefinder', name: 'HomeFinder', domains: ['homefinder.com'], category: 'portal', media: ['listing', 'photos'], detail: /realestateandhomes-detail/, playbook: 'realtor' },
   { key: 'homes', name: 'Homes.com', domains: ['homes.com'], category: 'portal', media: ['listing', 'photos'], detail: /\/property\//, playbook: 'homes' },
   { key: 'movoto', name: 'Movoto', domains: ['movoto.com'], category: 'portal', media: ['listing', 'photos'], detail: /\/home\/|-\d{6,}\/?$|\/pid_/, playbook: 'movoto' },
   { key: 'estately', name: 'Estately', domains: ['estately.com'], category: 'portal', media: ['listing', 'photos'], detail: /\/listings\/info\//, playbook: 'estately' },
@@ -45,7 +47,7 @@ export const SITES: Site[] = [
 
   // Big brokerages (IDX)
   { key: 'compass', name: 'Compass', domains: ['compass.com'], category: 'brokerage', media: ['listing', 'photos'], detail: /\/homedetails\/|\/listing\//, playbook: 'compass' },
-  { key: 'coldwellbanker', name: 'Coldwell Banker', domains: ['coldwellbankerhomes.com', 'coldwellbanker.com'], category: 'brokerage', media: ['listing', 'photos'], detail: /\/pid_\d+|\/property\//, playbook: 'anywhere' },
+  { key: 'coldwellbanker', name: 'Coldwell Banker', domains: ['coldwellbankerhomes.com', 'coldwellbanker.com'], category: 'brokerage', media: ['listing', 'photos'], detail: /\/pid_\d+|\/property\/|\/lid-/, playbook: 'anywhere' },
   { key: 'century21', name: 'Century 21', domains: ['century21.com'], category: 'brokerage', media: ['listing', 'photos'], detail: /\/property\/|\/homes\/detail\//, playbook: 'anywhere' },
   { key: 'sothebys', name: "Sotheby's International Realty", domains: ['sothebysrealty.com'], category: 'brokerage', media: ['listing', 'photos'], detail: /\/eng\/sales\/detail\//, playbook: 'anywhere' },
   { key: 'bhgre', name: 'Better Homes and Gardens Real Estate', domains: ['bhgre.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'anywhere' },
@@ -56,7 +58,7 @@ export const SITES: Site[] = [
   { key: 'exp', name: 'eXp Realty', domains: ['exprealty.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'corcoran', name: 'Corcoran', domains: ['corcoran.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'anywhere' },
   { key: 'elliman', name: 'Douglas Elliman', domains: ['elliman.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
-  { key: 'windermere', name: 'Windermere', domains: ['windermere.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'windermere', name: 'Windermere', domains: ['windermere.com', 'withwre.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'weichert', name: 'Weichert', domains: ['weichert.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'harrynorman', name: 'Harry Norman Realtors', domains: ['harrynorman.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'cryeleike', name: 'Crye-Leike', domains: ['crye-leike.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
@@ -106,6 +108,7 @@ export const SITES: Site[] = [
 
   // Rentals
   { key: 'apartments', name: 'Apartments.com', domains: ['apartments.com'], category: 'rental', media: ['listing', 'photos'], playbook: 'costar_rentals' },
+  { key: 'apartmentfinder', name: 'ApartmentFinder', domains: ['apartmentfinder.com'], category: 'rental', media: ['listing', 'photos'], playbook: 'costar_rentals' },
   { key: 'zumper', name: 'Zumper', domains: ['zumper.com'], category: 'rental', media: ['listing', 'photos'], playbook: 'generic_portal' },
   { key: 'rent', name: 'Rent.com', domains: ['rent.com'], category: 'rental', media: ['listing', 'photos'], playbook: 'generic_portal' },
   { key: 'craigslist', name: 'Craigslist', domains: ['craigslist.org'], category: 'rental', media: ['listing', 'photos'], playbook: 'craigslist' },
@@ -199,7 +202,7 @@ export const SEARCH_GROUPS: { label: string; domains: string[] }[] = [
   // agent sites still show up through the general searches, but no searches are spent on them.
   { label: 'portals', domains: ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'homes.com', 'movoto.com', 'estately.com'] },
   { label: 'portals2', domains: ['houzeo.com', 'har.com', 'point2homes.com', 'xome.com', 'opendoor.com', 'beycome.com'] },
-  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'bhhs.com', 'sothebysrealty.com'] },
+  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'coldwellbanker.com', 'century21.com', 'bhhs.com', 'sothebysrealty.com'] },
   { label: 'brokerages2', domains: ['kw.com', 'exprealty.com', 'remax.com', 'era.com', 'bhgre.com', 'howardhanna.com', 'elliman.com', 'corcoran.com', 'windermere.com', 'weichert.com'] },
   { label: 'brokerages3', domains: ['onereal.com', 'fathomrealty.com', 'homesmart.com', 'lptrealty.com', 'realtyonegroup.com', 'evrealestate.com', 'longandfoster.com', 'unitedrealestate.com'] },
   { label: 'tours', domains: ['matterport.com', 'youriguide.com', 'aryeo.com', 'hdphotohub.com', 'tourbuzz.net', 'cloudpano.com', 'kuula.co', 'listing.photos', 'spiro.media', 'propertypanorama.com'] },
@@ -238,10 +241,10 @@ export function needsPropertyUrl(site: Site): boolean {
  * The order is the priority when there are many to fill.
  */
 export const NAMED_FILL_DOMAINS = [
-  'realtor.com', 'homes.com', 'trulia.com', 'redfin.com', 'movoto.com', 'compass.com', 'coldwellbankerhomes.com',
-  'century21.com', 'bhhs.com', 'sothebysrealty.com', 'exprealty.com', 'estately.com', 'houzeo.com', 'kw.com',
-  'remax.com', 'era.com', 'bhgre.com', 'har.com', 'atproperties.com', 'howardhanna.com', 'youtube.com', 'facebook.com',
-  'instagram.com', 'matterport.com',
+  'realtor.com', 'homes.com', 'redfin.com', 'trulia.com', 'coldwellbankerhomes.com', 'century21.com', 'bhhs.com', 'compass.com',
+  'kw.com', 'exprealty.com', 'remax.com', 'movoto.com', 'sothebysrealty.com', 'era.com', 'bhgre.com', 'coldwellbanker.com',
+  'elliman.com', 'corcoran.com', 'windermere.com', 'howardhanna.com', 'atproperties.com', 'estately.com', 'houzeo.com', 'har.com',
+  'weichert.com', 'youtube.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'matterport.com',
 ];
 
 /** National brokerage brands: with portals, social and video, the sites the headline score counts. */

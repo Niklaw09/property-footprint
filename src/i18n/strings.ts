@@ -137,6 +137,7 @@ const en = {
   evCity: 'city',
   evUnit: 'unit number',
   evLookup: 'the site’s own address lookup',
+  evSameListing: 'the same listing id as a matching page on a sister site',
   evOtherUnit: 'this page lists a unit in your building',
   evUnitMissing: 'this page doesn’t show your unit number',
 
@@ -331,6 +332,7 @@ const es: Strings = {
   evCity: 'ciudad',
   evUnit: 'número de unidad',
   evLookup: 'la búsqueda de direcciones del propio sitio',
+  evSameListing: 'el mismo número de anuncio que una página coincidente en un sitio hermano',
   evOtherUnit: 'esta página muestra una unidad de tu edificio',
   evUnitMissing: 'esta página no muestra tu número de unidad',
 

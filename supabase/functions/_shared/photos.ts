@@ -67,7 +67,12 @@ export async function checkPhotos(url: string, fetchFn: FetchLike, timeoutMs = 6
   const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const res = await fetchFn(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HomePrint photo check)', Accept: 'text/html' },
+      // An honest bot name in the usual form; many sites turn away requests that don't look like a known client.
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; HomePrintBot/1.0; +https://homeprint.online)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
       signal: ctl.signal,
       redirect: 'follow',
     });

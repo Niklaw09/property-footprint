@@ -31,6 +31,12 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://neuhausre.com/properties/austin/14425-american-kestrel-dr-01257001460000"
     ],
     "confirmed": [
+      "https://www.compass.com/homedetails/14425-American-Kestrel-Dr-Austin-TX-78738/1BZA4M_pid/",
+      "https://www.bhgre.com/home/detail/tx/austin/14425-american-kestrel-dr/lid-P00800000HErurIxBo8dEQKHUT4iwp5I08sPZckG",
+      "https://colecapper.prod.consumer.kw.com/property/14425-American-Kestrel-Drive-Austin-TX-78738/2142383868491834",
+      "https://the-simpsons.prod.consumer.kw.com/property/14425-American-Kestrel-Drive-Austin-TX-78738/2142383868491834",
+      "https://www.bhhs.com/homes-for-sale/tx/14425-american-kestrel-dr-austin-78738/pid-436488524",
+      "https://antoniogomez.exprealty.com/property/105-3777682-14425-american-kestrel-dr-austin-TX-78738",
       "https://www.realtor.com/realestateandhomes-detail/14425-American-Kestrel-Dr_Austin_TX_78738_M87848-30096",
       "https://www.realtor.com/rentals/details/14425-American-Kestrel-Dr_Austin_TX_78738_M87848-30096",
       "https://www.homes.com/property/14425-american-kestrel-dr-austin-tx/k95kj5zh9w15e/",
@@ -70,6 +76,10 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://atproperties.com/4191638/6413-york-bridge-cir-austin-texas-78749-unlockmls"
     ],
     "confirmed": [
+      "https://www.compass.com/homedetails/6413-York-Bridge-Cir-Austin-TX-78749/1FGA91_pid/",
+      "https://www.century21.com/homes/detail/tx/austin/6413-york-bridge-cir/lid-P00800000HG2LeoTB2cavrFQMQyVeDhwFwPh6Qo2",
+      "https://www.century21.com/homes/detail/tx/austin/6413-york-bridge-cir/lid-P00800000HIRbHwL1ZAsf409LOoNrfTDAkAEqUrI",
+      "https://www.bhhs.com/homes-for-sale/tx/6413-york-bridge-cir-austin-78749/pid-437806038",
       "https://www.trulia.com/home/6413-york-bridge-cir-austin-tx-78749-70334856",
       "https://www.realtor.com/realestateandhomes-detail/6413-York-Bridge-Cir_Austin_TX_78749_M87030-89620",
       "https://www.homes.com/property/6413-york-bridge-cir-austin-tx/xslj194rpv2km/",
@@ -103,6 +113,9 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://valleygroupaz.realgeeks.com/property/7068179/"
     ],
     "confirmed": [
+      "https://www.era.com/property/detail/az/phoenix/4138-e-tanglewood-dr/lid-P00800000HFu3ZTpuzpOqpd5zJwQh4afQnKqsGFU",
+      "https://www.rmxprofessionals.com/property/22-7068179-4138-e-tanglewood-drive-phoenix-AZ-85048",
+      "https://www.thebergaminigroup.com/search/arizona/phoenix/remington-trace-lot-110-217-tr-a-f/4138-e-tanglewood-drive-bid-35-7068179",
       "https://www.realtor.com/realestateandhomes-detail/4138-E-Tanglewood-Dr_Phoenix_AZ_85048_M22813-31874",
       "https://www.homes.com/property/4138-e-tanglewood-dr-phoenix-az/jd5grrbgts98p/",
       "https://www.houzeo.com/homes/4138-e-tanglewood-dr-phoenix-az-85048/hzid_6e0e022d",
@@ -198,6 +211,7 @@ export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: st
       "https://bexrealty.com/FL/Tampa/14732-san-marsala-court/home/MFRTB8543033"
     ],
     "confirmed": [
+      "https://thechristianobrien.com/sold-listing/detail/1200223963/14732-SAN-MARSALA-CT-Tampa-FL",
       "https://www.realtor.com/realestateandhomes-detail/14732-San-Marsala-Ct_Tampa_FL_33626_M69071-47711",
       "https://www.homes.com/property/14732-san-marsala-ct-tampa-fl/y00rwg8zl24v4/",
       "https://www.estately.com/listings/info/14732-san-marsala-court-tampa-fl-33626",

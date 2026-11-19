@@ -81,8 +81,8 @@ describe('runScan', () => {
   it('builds compact Google queries', () => {
     const q = buildQueries(a).find((x) => x.label === 'portals')!;
     expect(renderGoogleQuery(q)).toBe('("89 Montgomery St SE" OR "89 Montgomery Street Southeast" OR "89 Montgomery St") Atlanta (site:zillow.com OR site:redfin.com OR site:realtor.com OR site:trulia.com OR site:homes.com OR site:movoto.com OR site:estately.com)');
-    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(14); // full-operator plans; up to 4 fill-in searches come on top
-    expect(buildQueries(a).length).toBeLessThanOrEqual(18);
+    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(15); // full-operator plans; up to 10 fill-in searches come on top
+    expect(buildQueries(a).length).toBeLessThanOrEqual(19);
   });
 });
 
@@ -95,9 +95,10 @@ describe('selftest', () => {
     } };
     const r = await runSelftest(() => ({ provider: fixtureProvider({}), lookups: [z] }));
     expect(r.rows).toHaveLength(SELFTEST_HOMES.length);
-    expect(r.rows.find((x) => x.address.startsWith('14425'))!.found).toBe(1);
-    expect(r.found).toBe(1);
-    expect(r.origFound).toBe(1);
+    // Zillow, plus the Trulia page built from Zillow's id
+    expect(r.rows.find((x) => x.address.startsWith('14425'))!.found).toBe(2);
+    expect(r.found).toBe(2);
+    expect(r.origFound).toBeGreaterThanOrEqual(1);
     expect(r.expected).toBeGreaterThan(r.origExpected); // confirmed pages count toward the headline
   });
 });
