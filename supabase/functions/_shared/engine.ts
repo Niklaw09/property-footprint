@@ -59,6 +59,8 @@ export function buildQueries(a: Address): SearchQuery[] {
     { label: 'media_words', kind: 'web', phrases, extra: `${a.city} ("virtual tour" OR "3D tour" OR "floor plan" OR video OR photos)` },
     { label: 'images', kind: 'images', phrases, extra: loc },
     { label: 'videos', kind: 'videos', phrases, extra: a.city },
+    // Plain-text searches that stand in for the site: searches on search plans that don't allow operators.
+    ...['plain_mls', 'plain_sold', 'plain_idx', 'plain_agent'].map((label) => ({ label, kind: 'web' as const, phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), fallbackOnly: true })),
   ];
   if (a.unit) qs.push({ label: 'unit', kind: 'web', phrases: phrases.map((p) => `${p} ${a.unit!.toUpperCase()}`), extra: a.city });
   return qs;

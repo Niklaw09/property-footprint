@@ -93,12 +93,12 @@ Deno.serve(async (req) => {
     return json({ error: 'method_not_allowed' }, 405);
   }
 
-  // Accuracy self-test on the 10 public test homes. ~100 search queries, so at most 3 runs per day.
+  // Accuracy self-test on the 10 public test homes. ~100 search queries, so at most 10 runs per day.
   if (body.action === 'selftest') {
     if (!provider()) return json({ error: 'not_configured' }, 503);
     try {
       const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
-      if ((n as number) > 3) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
+      if ((n as number) > 10) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
       return json(await runSelftest(() => ({ provider: provider() })));
     } catch (e) {
       console.error('selftest', e);

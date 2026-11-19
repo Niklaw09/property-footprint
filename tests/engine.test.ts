@@ -81,7 +81,8 @@ describe('runScan', () => {
   it('builds compact Google queries', () => {
     const q = buildQueries(a).find((x) => x.label === 'portals')!;
     expect(renderGoogleQuery(q)).toBe('("89 Montgomery St SE" OR "89 Montgomery Street Southeast" OR "89 Montgomery St") Atlanta (site:zillow.com OR site:redfin.com OR site:realtor.com OR site:trulia.com OR site:homes.com OR site:movoto.com OR site:estately.com)');
-    expect(buildQueries(a).length).toBeLessThanOrEqual(12);
+    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(12); // full-operator plans
+    expect(buildQueries(a).length).toBeLessThanOrEqual(16);
   });
 });
 
