@@ -2,7 +2,8 @@ import { useState } from 'react';
 
 const KEY = 'pf.selftestKey';
 const readKey = () => { try { return localStorage.getItem(KEY) ?? ''; } catch { return ''; } };
-import { Loader2, Play, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Play, CheckCircle2, XCircle, Download } from 'lucide-react';
+import { summarize, type RawHome } from '@engine/selftest.ts';
 import type { SelftestResult } from '@/lib/api';
 import { errorText } from '@/lib/errors';
 import { useLang } from '@/lib/i18n';
@@ -12,23 +13,34 @@ import type { AppCtx } from '@/App';
 export default function Selftest({ ctx }: { ctx: AppCtx }) {
   const { t } = useLang();
   const [state, setState] = useState<'idle' | 'running' | 'done'>('idle');
+  const [half, setHalf] = useState(0);
+  const [raw, setRaw] = useState<RawHome[]>([]);
   const [res, setRes] = useState<SelftestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(readKey);
   const run = async () => {
     setState('running'); setError(null);
     try { localStorage.setItem(KEY, key.trim()); } catch { /* ignore */ }
-    try { setRes(await ctx.api.selftest(key.trim() || undefined)); setState('done'); } catch (e) { setError(errorText(e, t)); setState('idle'); }
+    try {
+      // Two halves of 10 homes, one after the other, so each fits in the server's time limit.
+      setHalf(1);
+      const a = await ctx.api.selftest(key.trim() || undefined, 0);
+      setHalf(2);
+      const b = await ctx.api.selftest(key.trim() || undefined, 1);
+      setRaw([...(a.raw ?? []), ...(b.raw ?? [])]);
+      setRes({ ...summarize([...a.rows, ...b.rows]), searchMode: b.searchMode ?? a.searchMode });
+      setState('done');
+    } catch (e) { setError(errorText(e, t)); setState('idle'); }
   };
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="font-serif text-3xl font-semibold text-navy-900">Accuracy check</h1>
-      <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 300 search credits; limited to 30 runs a day with the test key.</p>
+      <p className="mt-2 text-sm text-navy-500">Scans 20 real homes in 18 markets and counts how many of their confirmed pages the live engine finds. Uses about 500 search credits (about 50¢); limited to 30 runs a day with the test key.</p>
       <label className="mt-6 block max-w-sm text-sm font-medium text-navy-700">Test key <span className="font-normal text-navy-400">(SELFTEST_KEY in Bolt; remembered on this browser. Not needed if you're signed in.)</span>
         <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" className="input-field mt-1" />
       </label>
       <button onClick={run} disabled={state === 'running'} className="btn-primary mt-4">
-        {state === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}{state === 'running' ? 'Running (about a minute)…' : 'Run accuracy check'}
+        {state === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}{state === 'running' ? `Running half ${half} of 2 (about a minute each)…` : 'Run accuracy check'}
       </button>
       {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       {res && (
@@ -42,6 +54,17 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
             {res.exactPages} pages with an exact address match (about {Math.round(res.exactPages / Math.max(1, res.rows.length))} per home)
             {res.newExact ? `, ${res.newExact} of them new` : ''}{res.searchMode ? ` · searches: ${res.searchMode}` : ''}
           </p>
+          {res.setA && <p className="mt-1 text-xs text-navy-400">First 10 homes only (to compare with earlier runs): {res.setA.sitesFound} of {res.setA.sitesExpected} big sites ({res.setA.sitesPct}%), pages on big sites {res.setA.namedPct}%</p>}
+          {raw.length > 0 && (
+            <button type="button" className="btn-secondary mt-4" onClick={() => {
+              const blob = new Blob([JSON.stringify({ when: new Date().toISOString(), result: res, raw })], { type: 'application/json' });
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = `homeprint-accuracy-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+            }}><Download className="h-5 w-5" />Download full results (send this file to Claude)</button>
+          )}
           {res.origExpected != null && <p className="mt-1 text-xs text-navy-400">Original 43-page list: {res.origFound} of {res.origExpected} ({res.origPct}%)</p>}
           <div className="mt-6 overflow-x-auto">
             <table className="w-full text-left text-sm">

@@ -8,7 +8,7 @@ import { createService, httpVerifier, ServiceError } from '../_shared/service.ts
 import { braveProvider, serperProvider, type SearchProvider } from '../_shared/providers.ts';
 import { supabaseStore } from './supabaseStore.ts';
 import { verifyTurnstile } from '../_shared/turnstile.ts';
-import { runSelftest } from '../_shared/selftest.ts';
+import { runSelftest, SELFTEST_HOMES } from '../_shared/selftest.ts';
 import { createCheckoutSession, getCheckoutSession } from '../_shared/stripe.ts';
 import { reviewEmail, sendWithResend } from '../_shared/reviewEmail.ts';
 
@@ -109,9 +109,12 @@ Deno.serve(async (req) => {
     }
     try {
       const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
-      // The owner's key gets a higher cap (about 250 credits a run).
-      if ((n as number) > (keyOk ? 30 : 10)) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
-      return json(await runSelftest(() => ({ provider: provider(), checkPhotos: true })));
+      // A run is two halves of 10 homes (each fits well inside the function's time limit), about 250 credits each.
+      // The owner's key gets a higher cap: 30 full runs a day, 10 without it.
+      if ((n as number) > (keyOk ? 60 : 20)) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
+      const part = body.part === 1 ? 1 : 0;
+      const homes = SELFTEST_HOMES.slice(part * 10, part * 10 + 10);
+      return json(await runSelftest(() => ({ provider: provider(), checkPhotos: true }), { homes, record: true }));
     } catch (e) {
       console.error('selftest', e);
       return json({ error: 'server_error' }, 500);
