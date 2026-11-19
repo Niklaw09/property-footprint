@@ -63,7 +63,7 @@ export function renderGoogleQuery(q: SearchQuery): string {
  */
 // Plain words that steer each simplified search toward the sites its full version targeted.
 const PLAIN_HINTS: Record<string, string> = {
-  portals: 'home for sale', portals2: 'listing', brokerages: 'realtor listing', brokerages2: 'realty', tours: 'virtual tour', video: 'video', social: 'photos', fill: 'home',
+  portals: 'home for sale', portals2: 'listing', brokerages: 'realtor listing', brokerages2: 'realty', brokerages3: 'realty listing', tours: 'virtual tour', video: 'video', social: 'photos', fill: 'home',
   rentals: 'for rent', media_words: 'photos', zip: 'listing', idx_sites: 'MLS listing details', longtail: 'real estate',
   plain_mls: 'MLS', plain_sold: 'sold', plain_idx: 'property details beds baths', plain_agent: 'realty',
 };

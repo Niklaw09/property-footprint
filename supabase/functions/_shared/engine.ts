@@ -198,6 +198,7 @@ function slugContradicts(a: Address, slug: string): boolean {
  * Label each finding with whether it still shows photos. Google showing an image from the page counts as
  * seen. Otherwise, when allowed, open the page (all at once, at most ~6 seconds in total).
  */
+const PHOTO_DEADLINE_MS = 7000;
 export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null): Promise<void> {
   const todo: Finding[] = [];
   for (const f of findings) {
@@ -205,19 +206,22 @@ export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null
     else if (fetchFn && f.category !== 'social' && f.category !== 'video' && canFetch(f.domain)) todo.push(f);
     else f.photos = 'unknown';
   }
-  const results = await Promise.all(todo.slice(0, 40).map((f) => checkPhotos(f.url, fetchFn!)));
-  todo.forEach((f, i) => (f.photos = results[i] ?? 'unknown'));
+  // Hard cap: whatever hasn't answered in 7 seconds stays "unknown", so the check can never hold up a scan.
+  const results: PhotoStatus[] = new Array(todo.length).fill('unknown');
+  const work = todo.slice(0, 40).map((f, i) => checkPhotos(f.url, fetchFn!).then((r) => { results[i] = r; }));
+  await Promise.race([Promise.all(work), new Promise((r) => setTimeout(r, PHOTO_DEADLINE_MS))]);
+  todo.forEach((f, i) => (f.photos = results[i]));
 }
 
-/** Fill-in searches for national sites the first round didn't find (up to 4 searches of 4 sites). */
+/** Fill-in searches for national sites the first round didn't find (up to 4 searches of 6 sites). */
 export function fillQueries(a: Address, prelim: Finding[]): SearchQuery[] {
   const have = prelim.filter((f) => f.confidence === 'exact').map((f) => f.domain);
   const missing = NAMED_FILL_DOMAINS
     .filter((d) => d !== 'har.com' || a.state === 'TX') // HAR only lists Texas homes
     .filter((d) => !have.some((h) => h === d || h.endsWith('.' + d)));
   const out: SearchQuery[] = [];
-  for (let i = 0; i < missing.length && out.length < 4; i += 4) {
-    out.push({ label: 'fill', kind: 'web', phrases: streetPhrases(a), extra: a.city, sites: missing.slice(i, i + 4), num: 10 });
+  for (let i = 0; i < missing.length && out.length < 4; i += 6) {
+    out.push({ label: 'fill', kind: 'web', phrases: streetPhrases(a), extra: a.city, sites: missing.slice(i, i + 6), num: 10 });
   }
   return out;
 }

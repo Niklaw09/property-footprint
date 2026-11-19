@@ -61,6 +61,14 @@ export const SITES: Site[] = [
   { key: 'harrynorman', name: 'Harry Norman Realtors', domains: ['harrynorman.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'cryeleike', name: 'Crye-Leike', domains: ['crye-leike.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'howardhanna', name: 'Howard Hanna', domains: ['howardhanna.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'real', name: 'Real Brokerage', domains: ['onereal.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'fathom', name: 'Fathom Realty', domains: ['fathomrealty.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'homesmart', name: 'HomeSmart', domains: ['homesmart.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'lpt', name: 'LPT Realty', domains: ['lptrealty.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'realtyonegroup', name: 'Realty ONE Group', domains: ['realtyonegroup.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'engelvolkers', name: 'Engel & Völkers', domains: ['evrealestate.com', 'engelvoelkers.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
+  { key: 'longfoster', name: 'Long & Foster', domains: ['longandfoster.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'anywhere' },
+  { key: 'unitedre', name: 'United Real Estate', domains: ['unitedrealestate.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'atproperties', name: '@properties', domains: ['atproperties.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'realty', name: 'Realty.com', domains: ['realty.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
   { key: 'bexrealty', name: 'Bex Realty', domains: ['bexrealty.com'], category: 'brokerage', media: ['listing', 'photos'], playbook: 'brokerage' },
@@ -193,6 +201,7 @@ export const SEARCH_GROUPS: { label: string; domains: string[] }[] = [
   { label: 'portals2', domains: ['houzeo.com', 'har.com', 'point2homes.com', 'xome.com', 'opendoor.com', 'beycome.com'] },
   { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'bhhs.com', 'sothebysrealty.com'] },
   { label: 'brokerages2', domains: ['kw.com', 'exprealty.com', 'remax.com', 'era.com', 'bhgre.com', 'howardhanna.com', 'elliman.com', 'corcoran.com', 'windermere.com', 'weichert.com'] },
+  { label: 'brokerages3', domains: ['onereal.com', 'fathomrealty.com', 'homesmart.com', 'lptrealty.com', 'realtyonegroup.com', 'evrealestate.com', 'longandfoster.com', 'unitedrealestate.com'] },
   { label: 'tours', domains: ['matterport.com', 'youriguide.com', 'aryeo.com', 'hdphotohub.com', 'tourbuzz.net', 'cloudpano.com', 'kuula.co', 'listing.photos', 'spiro.media', 'propertypanorama.com'] },
   { label: 'video', domains: ['youtube.com', 'vimeo.com', 'tiktok.com'] },
   { label: 'social', domains: ['facebook.com', 'instagram.com', 'pinterest.com'] },
@@ -232,10 +241,11 @@ export const NAMED_FILL_DOMAINS = [
   'realtor.com', 'homes.com', 'trulia.com', 'redfin.com', 'movoto.com', 'compass.com', 'coldwellbankerhomes.com',
   'century21.com', 'bhhs.com', 'sothebysrealty.com', 'exprealty.com', 'estately.com', 'houzeo.com', 'kw.com',
   'remax.com', 'era.com', 'bhgre.com', 'har.com', 'atproperties.com', 'howardhanna.com', 'youtube.com', 'facebook.com',
+  'instagram.com', 'matterport.com',
 ];
 
 /** National brokerage brands: with portals, social and video, the sites the headline score counts. */
-export const NATIONAL_BROKERAGES = new Set(['compass', 'coldwellbanker', 'century21', 'sothebys', 'bhgre', 'era', 'remax', 'kw', 'bhhs', 'exp', 'howardhanna', 'atproperties', 'corcoran', 'elliman', 'windermere', 'weichert']);
+export const NATIONAL_BROKERAGES = new Set(['compass', 'coldwellbanker', 'century21', 'sothebys', 'bhgre', 'era', 'remax', 'kw', 'bhhs', 'exp', 'howardhanna', 'atproperties', 'corcoran', 'elliman', 'windermere', 'weichert', 'real', 'fathom', 'homesmart', 'lpt', 'realtyonegroup', 'engelvolkers', 'longfoster', 'unitedre']);
 
 /** Priority sites: major portals, national brokerages, social and video. */
 export function isPrioritySite(site: Site | undefined): boolean {

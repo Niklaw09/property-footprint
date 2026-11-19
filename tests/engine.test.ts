@@ -81,8 +81,8 @@ describe('runScan', () => {
   it('builds compact Google queries', () => {
     const q = buildQueries(a).find((x) => x.label === 'portals')!;
     expect(renderGoogleQuery(q)).toBe('("89 Montgomery St SE" OR "89 Montgomery Street Southeast" OR "89 Montgomery St") Atlanta (site:zillow.com OR site:redfin.com OR site:realtor.com OR site:trulia.com OR site:homes.com OR site:movoto.com OR site:estately.com)');
-    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(13); // full-operator plans, plus up to 2 MLS searches
-    expect(buildQueries(a).length).toBeLessThanOrEqual(17);
+    expect(buildQueries(a).filter((x) => !x.fallbackOnly).length).toBeLessThanOrEqual(14); // full-operator plans; up to 4 fill-in searches come on top
+    expect(buildQueries(a).length).toBeLessThanOrEqual(18);
   });
 });
 

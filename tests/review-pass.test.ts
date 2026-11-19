@@ -146,3 +146,29 @@ describe('priority sites', () => {
     expect(isNamedSite('https://thekeenangroup.com/1-main-st')).toBe(false);
   });
 });
+
+describe('search budget', () => {
+  it('worst case stays at 18 searches per scan (14 first-round + 4 fill-in)', async () => {
+    const { buildQueries, fillQueries } = await import('@engine/engine.ts');
+    const a = parseAddress('14425 American Kestrel Dr, Austin, TX 78738');
+    expect(buildQueries(a).filter((q) => !q.fallbackOnly).length).toBe(14);
+    expect(fillQueries(a, []).length).toBeLessThanOrEqual(4);
+    expect(fillQueries(a, []).flatMap((q) => q.sites ?? [])).toContain('kw.com');
+  });
+
+  it('photo checks give up after 7 seconds instead of holding up the scan', async () => {
+    const { labelPhotos } = await import('@engine/engine.ts');
+    const f = { id: '1', url: 'https://slow.example.com/1-main-st', canonicalUrl: '', domain: 'slow.example.com', siteKey: 'x', siteName: 'x', category: 'brokerage', media: [], title: '', snippet: '', thumbnails: [], confidence: 'exact', evidence: [], foundVia: [], playbook: 'brokerage' } as any;
+    const never = (() => new Promise(() => {})) as any;
+    const t0 = Date.now();
+    await labelPhotos([f], never);
+    expect(Date.now() - t0).toBeLessThan(8000);
+    expect(f.photos).toBe('unknown');
+  }, 10000);
+
+  it('names the national brokerages the owner listed', () => {
+    for (const [u, k] of [['https://www.onereal.com/x/1', 'real'], ['https://www.kw.com/property/1', 'kw'], ['https://www.century21.com/homes/detail/1', 'century21'], ['https://www.exprealty.com/x/1', 'exp'], ['https://www.remax.com/home-details/1', 'remax'], ['https://www.homesmart.com/x/1', 'homesmart']] as const) {
+      expect(siteFor(u)?.key).toBe(k);
+    }
+  });
+});
