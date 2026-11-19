@@ -1,8 +1,9 @@
 // The finding engine: portal lookups + web/image/video search -> deterministic address matching -> findings.
 
 import { type Address, DIRECTIONS, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
+import { type PhotoStatus, canFetch, checkPhotos } from './photos.ts';
 import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
-import { SITES, SEARCH_GROUPS, LONGTAIL_EXCLUDE, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, needsPropertyUrl, siteFor, unknownSite, urlNamesProperty } from './sites.ts';
+import { SITES, SEARCH_GROUPS, NAMED_FILL_DOMAINS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, needsPropertyUrl, siteFor, unknownSite, urlNamesProperty } from './sites.ts';
 
 export interface Finding {
   id: string; // stable hash of the canonical URL
@@ -22,6 +23,8 @@ export interface Finding {
   playbook: string;
   coveredBy?: string; // e.g. trulia is removed through zillow
   missedRuns?: number; // consecutive re-scans that didn't see this page (kept on the stored copy only)
+  /** Whether the page still shows photos: seen (Google showed one, or we saw them), none, or unknown (site blocks checks). */
+  photos?: PhotoStatus;
 }
 
 export interface DirectCheck {
@@ -59,9 +62,6 @@ export function buildQueries(a: Address): SearchQuery[] {
     { label: 'zip', kind: 'web', phrases, extra: a.zip ?? a.city },
     ...SEARCH_GROUPS.map((g) => ({ label: g.label, kind: 'web' as const, phrases, extra: a.city, sites: g.domains })),
     { label: 'media_words', kind: 'web', phrases, extra: `${a.city} ("virtual tour" OR "3D tour" OR "floor plan" OR video OR photos)` },
-    // The big portals fill the first page of every search. Leaving them out surfaces the agent and IDX sites behind them.
-    { label: 'longtail', kind: 'web', phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), exclude: LONGTAIL_EXCLUDE },
-    { label: 'general_p2', kind: 'web', phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), page: 2 },
     { label: 'images', kind: 'images', phrases, extra: loc },
     { label: 'videos', kind: 'videos', phrases, extra: a.city },
     // Plain-text searches that stand in for the site: searches on search plans that don't allow operators.
@@ -194,6 +194,34 @@ function slugContradicts(a: Address, slug: string): boolean {
   return true;
 }
 
+/**
+ * Label each finding with whether it still shows photos. Google showing an image from the page counts as
+ * seen. Otherwise, when allowed, open the page (all at once, at most ~6 seconds in total).
+ */
+export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null): Promise<void> {
+  const todo: Finding[] = [];
+  for (const f of findings) {
+    if (f.thumbnails.length) f.photos = 'seen';
+    else if (fetchFn && f.category !== 'social' && f.category !== 'video' && canFetch(f.domain)) todo.push(f);
+    else f.photos = 'unknown';
+  }
+  const results = await Promise.all(todo.slice(0, 40).map((f) => checkPhotos(f.url, fetchFn!)));
+  todo.forEach((f, i) => (f.photos = results[i] ?? 'unknown'));
+}
+
+/** Fill-in searches for national sites the first round didn't find (up to 4 searches of 4 sites). */
+export function fillQueries(a: Address, prelim: Finding[]): SearchQuery[] {
+  const have = prelim.filter((f) => f.confidence === 'exact').map((f) => f.domain);
+  const missing = NAMED_FILL_DOMAINS
+    .filter((d) => d !== 'har.com' || a.state === 'TX') // HAR only lists Texas homes
+    .filter((d) => !have.some((h) => h === d || h.endsWith('.' + d)));
+  const out: SearchQuery[] = [];
+  for (let i = 0; i < missing.length && out.length < 4; i += 4) {
+    out.push({ label: 'fill', kind: 'web', phrases: streetPhrases(a), extra: a.city, sites: missing.slice(i, i + 4), num: 10 });
+  }
+  return out;
+}
+
 const ZILLOW_FAMILY = new Set(['zillow', 'trulia', 'hotpads']); // share Zillow's property ids, not MLS numbers
 
 /**
@@ -253,6 +281,8 @@ export interface EngineOptions {
   lookups?: PortalLookup[];
   timeoutMs?: number;
   concurrency?: number;
+  /** Open pages that allow it to see whether they still show photos (no search credits; a few seconds). */
+  checkPhotos?: boolean;
 }
 
 async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -304,19 +334,21 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
   };
   await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 8 }, worker)]);
 
-  // Second round: search the listing's MLS number. Many agent sites (Real Geeks and other IDX sites) name
-  // the page after it, and Google ranks them low for the street address.
+  // Second round: fill in the national sites the first round missed, a few at a time, so each gets room in
+  // Google's results (mixed results vary from run to run). The MLS-number search (listingIds) is no longer
+  // run: it mostly found small agent sites, which aren't worth the searches.
   if (opts.provider) {
-    const ids = listingIds(evaluate(a, candidates, {}));
-    const pivots = ids.map((id) => ({ label: 'mls_id', kind: 'web' as const, phrases: [id.toUpperCase()], extra: a.city }));
-    diagnostics.queries += pivots.length;
-    queue.push(...pivots);
-    await Promise.all(Array.from({ length: Math.min(pivots.length, opts.concurrency ?? 8) }, worker));
+    const prelim = evaluate(a, candidates, {});
+    const round2: SearchQuery[] = fillQueries(a, prelim);
+    diagnostics.queries += round2.length;
+    queue.push(...round2);
+    await Promise.all(Array.from({ length: Math.min(round2.length, opts.concurrency ?? 8) }, worker));
   }
 
   diagnostics.searchMode = opts.provider?.mode?.();
   diagnostics.candidates = candidates.length;
   const findings = addCoveredSiblings(evaluate(a, candidates, diagnostics.rejected));
+  await labelPhotos(findings, opts.checkPhotos ? fetchFn : null);
   diagnostics.durationMs = Date.now() - started;
   return {
     address: a,

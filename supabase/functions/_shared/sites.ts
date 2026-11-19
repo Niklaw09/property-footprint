@@ -152,12 +152,14 @@ export function unknownSite(url: string): Site {
 }
 
 // Area pages that list many homes, on any site: neighborhoods, communities, subdivisions, points of interest, schools.
+// Calculator and financing pages hanging off a listing (e.g. har.com/homedetail/<id>/<id>/downpayment).
+const SUBPAGE = /\/(downpayment|mortgage|affordability|calculator|financing)(\/|\?|$)/i;
 const AREA_PAGE = /\/(neighbou?rhoods?|communit(y|ies)|subdivisions?|points-of-interest|schools?|market-(report|trends)|zip|zipcodes?|county|counties)(\/|$)/i;
 
 export function isDetailPage(site: Site, url: string): boolean {
   try {
     const u = new URL(url);
-    if (site.category !== 'social' && site.category !== 'video' && AREA_PAGE.test(u.pathname)) return false;
+    if (site.category !== 'social' && site.category !== 'video' && (AREA_PAGE.test(u.pathname) || SUBPAGE.test(u.pathname))) return false;
     if (!site.detail) return true;
     return site.detail.test(u.pathname + u.search) || site.detail.test(url);
   } catch {
@@ -185,12 +187,15 @@ export function canonicalUrl(url: string): string {
 
 /** Groups of sites searched together with (site:a OR site:b ...) — keeps the query budget small. */
 export const SEARCH_GROUPS: { label: string; domains: string[] }[] = [
+  // Focus (owner's call, Nov 2026): major portals, national brokerages, social and video. Small independent
+  // agent sites still show up through the general searches, but no searches are spent on them.
   { label: 'portals', domains: ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'homes.com', 'movoto.com', 'estately.com'] },
-  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'remax.com', 'kw.com', 'bhhs.com', 'sothebysrealty.com', 'har.com', 'exprealty.com', 'atproperties.com'] },
-  // Listing sites that the bigger portals crowd out of the brokerages search; the Nov 2026 runs missed these most.
-  { label: 'idx_sites', domains: ['realgeeks.com', 'estately.com', 'houzeo.com', 'unionstmedia.com', 'beycome.com', 'bexrealty.com', 'idxbroker.com', 'lofty.me'] },
+  { label: 'portals2', domains: ['houzeo.com', 'har.com', 'point2homes.com', 'xome.com', 'opendoor.com', 'beycome.com'] },
+  { label: 'brokerages', domains: ['compass.com', 'coldwellbankerhomes.com', 'century21.com', 'bhhs.com', 'sothebysrealty.com'] },
+  { label: 'brokerages2', domains: ['kw.com', 'exprealty.com', 'remax.com', 'era.com', 'bhgre.com', 'howardhanna.com', 'elliman.com', 'corcoran.com', 'windermere.com', 'weichert.com'] },
   { label: 'tours', domains: ['matterport.com', 'youriguide.com', 'aryeo.com', 'hdphotohub.com', 'tourbuzz.net', 'cloudpano.com', 'kuula.co', 'listing.photos', 'spiro.media', 'propertypanorama.com'] },
-  { label: 'video_social', domains: ['youtube.com', 'vimeo.com', 'facebook.com', 'instagram.com', 'pinterest.com', 'tiktok.com'] },
+  { label: 'video', domains: ['youtube.com', 'vimeo.com', 'tiktok.com'] },
+  { label: 'social', domains: ['facebook.com', 'instagram.com', 'pinterest.com'] },
   { label: 'rentals', domains: ['apartments.com', 'hotpads.com', 'zumper.com', 'rent.com', 'craigslist.org'] },
 ];
 
@@ -218,8 +223,25 @@ export function needsPropertyUrl(site: Site): boolean {
   return !site.detail && (site.category === 'brokerage' || site.category === 'portal' || site.category === 'rental' || site.category === 'other');
 }
 
-/** Sites left out of the 'longtail' search: they fill the first page of every search and are covered by other searches. */
-export const LONGTAIL_EXCLUDE = ['zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'homes.com', 'movoto.com', 'compass.com', 'coldwellbankerhomes.com', 'facebook.com', 'instagram.com', 'youtube.com'];
+/**
+ * National sites with a page for nearly every listed home. When the first round of searches misses one of
+ * them (Google's mixed results vary from run to run), a fill-in search asks for just the missing ones.
+ * The order is the priority when there are many to fill.
+ */
+export const NAMED_FILL_DOMAINS = [
+  'realtor.com', 'homes.com', 'trulia.com', 'redfin.com', 'movoto.com', 'compass.com', 'coldwellbankerhomes.com',
+  'century21.com', 'bhhs.com', 'sothebysrealty.com', 'exprealty.com', 'estately.com', 'houzeo.com', 'kw.com',
+  'remax.com', 'era.com', 'bhgre.com', 'har.com', 'atproperties.com', 'howardhanna.com', 'youtube.com', 'facebook.com',
+];
+
+/** National brokerage brands: with portals, social and video, the sites the headline score counts. */
+export const NATIONAL_BROKERAGES = new Set(['compass', 'coldwellbanker', 'century21', 'sothebys', 'bhgre', 'era', 'remax', 'kw', 'bhhs', 'exp', 'howardhanna', 'atproperties', 'corcoran', 'elliman', 'windermere', 'weichert']);
+
+/** Priority sites: major portals, national brokerages, social and video. */
+export function isPrioritySite(site: Site | undefined): boolean {
+  if (!site) return false;
+  return site.category === 'portal' || site.category === 'social' || site.category === 'video' || NATIONAL_BROKERAGES.has(site.key);
+}
 
 export function siteByKey(key: string): Site | undefined {
   return SITES.find((s) => s.key === key);

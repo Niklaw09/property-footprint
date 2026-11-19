@@ -104,3 +104,45 @@ describe('site names', () => {
     expect(siteFor('https://ivyleaguerealtyga.lofty.me/listing-detail/1/x')?.playbook).toBe('idx_platform');
   });
 });
+
+import { htmlShowsPhotos } from '@engine/photos.ts';
+import { labelPhotos, type Finding } from '@engine/engine.ts';
+
+describe('photo check', () => {
+  it('sees listing photos in og:image or a gallery, not in logos', () => {
+    expect(htmlShowsPhotos('<meta property="og:image" content="https://photos.example-mls.com/123/1.jpg">')).toBe(true);
+    expect(htmlShowsPhotos('<meta property="og:image" content="https://agent.com/assets/logo.png">')).toBe(false);
+    const gallery = [1, 2, 3].map((i) => `<img src="https://cdn.idx.example.com/listing/9/${i}.jpg">`).join('');
+    expect(htmlShowsPhotos(gallery)).toBe(true);
+    expect(htmlShowsPhotos('<img src="https://cdn.example.com/listing/9/1.jpg"><img src="/img/logo.jpg">')).toBe(false);
+  });
+
+  it('labels pages: Google thumbnail = seen, fetched page decides, blocked sites unknown', async () => {
+    const f = (url: string, domain: string, thumbs: string[] = [], category = 'brokerage'): Finding =>
+      ({ id: url, url, canonicalUrl: url, domain, siteKey: 'x', siteName: 'x', category, media: [], title: '', snippet: '', thumbnails: thumbs, confidence: 'exact', evidence: [], foundVia: [], playbook: 'brokerage' } as Finding);
+    const pad = 'x'.repeat(3000);
+    const fetchFn = (async (url: string) => new Response(url.includes('withphotos')
+      ? `<html>${pad}<meta property="og:image" content="https://photos.mls.example.com/a.jpg"></html>`
+      : `<html>${pad}<p>3 beds 2 baths</p></html>`, { headers: { 'content-type': 'text/html' } })) as any;
+    const list = [
+      f('https://www.zillow.com/homedetails/1_zpid/', 'zillow.com', [], 'portal'),
+      f('https://agent.com/withphotos/1', 'agent.com'),
+      f('https://agent2.com/nophotos/1', 'agent2.com'),
+      f('https://agent3.com/x/1', 'agent3.com', ['https://img/1.jpg']),
+    ];
+    await labelPhotos(list, fetchFn);
+    expect(list.map((x) => x.photos)).toEqual(['unknown', 'seen', 'none', 'seen']);
+  });
+});
+
+describe('priority sites', () => {
+  it('counts portals, national brokerages, social and video; not small agent sites', async () => {
+    const { isNamedSite } = await import('@engine/selftest.ts');
+    expect(isNamedSite('https://www.trulia.com/home/1')).toBe(true);
+    expect(isNamedSite('https://chadhowery.kw.com/property/1')).toBe(true);
+    expect(isNamedSite('https://www.exprealty.com/x/1-main-st')).toBe(true);
+    expect(isNamedSite('https://www.instagram.com/p/abc/')).toBe(true);
+    expect(isNamedSite('https://ashbyre.realgeeks.com/property/1/')).toBe(false);
+    expect(isNamedSite('https://thekeenangroup.com/1-main-st')).toBe(false);
+  });
+});

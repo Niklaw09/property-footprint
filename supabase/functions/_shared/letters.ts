@@ -80,17 +80,17 @@ ${date}`,
             subject: `Please remove listing photos for ${c.address}`,
             body: `Hi,
 
-${who}. You (or your brokerage) were the listing agent for this home, and its photos are still online, including:
+${who}. You (or your brokerage) were the listing agent for this home. I understand that once a home is marketed online, its photos are copied to many sites outside your control, so I'm only asking for what you're able to do. The photos are still online, including:
 
 ${links}
 
-Could you please do the following?
+If possible, could you please:
 1. In the MLS, mark all photos, virtual tours, videos and floor plans for this listing as private (or delete them), and turn off syndication/IDX display for them.
 2. Remove the listing and its media from your own and your brokerage's websites.
 3. Unpublish any single-property website, Matterport or other 3D tour, and video you or your photographer created for this listing.
 4. Ask your photographer or media company to do the same on their platform.
 
-Many MLSs allow this after closing, and it is the fastest way to stop the photos from being copied to more sites. I would really appreciate a quick reply once it's done.
+Many MLSs allow this after closing, though I know some require photos to stay on file. If any of these aren't possible, just let me know and I'll contact the sites directly. Thank you for your help with this, I really appreciate it.
 
 Thank you,
 ${name}
@@ -100,17 +100,17 @@ ${date}`,
             subject: `Por favor quite las fotos del anuncio de ${c.address}`,
             body: `Hola:
 
-${who}. Usted (o su correduría) fue el agente del anuncio de esta casa, y sus fotos siguen en internet, por ejemplo:
+${who}. Usted (o su correduría) fue el agente del anuncio de esta casa. Entiendo que, una vez que una casa se promociona en internet, sus fotos se copian a muchos sitios que usted no controla, así que solo le pido lo que esté a su alcance. Las fotos siguen en internet, por ejemplo:
 
 ${links}
 
-¿Podría hacer lo siguiente?
+Si es posible, ¿podría:
 1. En el MLS, marcar como privadas (o borrar) todas las fotos, recorridos virtuales, videos y planos de este anuncio, y apagar su distribución/IDX.
 2. Quitar el anuncio y sus imágenes de su sitio web y del de su correduría.
 3. Despublicar cualquier sitio web de la propiedad, recorrido de Matterport u otro recorrido 3D y video que usted o su fotógrafo hayan creado para este anuncio.
 4. Pedir a su fotógrafo o empresa de medios que haga lo mismo en su plataforma.
 
-Muchos MLS lo permiten después del cierre, y es la forma más rápida de evitar que las fotos se copien a más sitios. Le agradecería una respuesta cuando esté hecho.
+Muchos MLS lo permiten después del cierre, aunque sé que algunos exigen conservar las fotos. Si algo de esto no es posible, avíseme y me comunicaré con los sitios directamente. Muchas gracias por su ayuda.
 
 Gracias,
 ${name}
