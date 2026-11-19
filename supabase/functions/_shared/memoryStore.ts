@@ -101,7 +101,7 @@ export function memoryStore(): Store & { dump(): unknown } {
       return runs.filter((r) => r.report_id === reportId && r.kind === kind && r.started_at >= sinceIso).length;
     },
     async dueMonitoredReports(nowIso, limit) {
-      const paid = new Set([...ents.values()].filter((e) => e.paid_until > nowIso).map((e) => `${e.user_id}:${e.report_id}`));
+      const paid = new Set([...ents.values()].filter((e) => e.paid_until > nowIso && (e.plan ?? 'monitor') === 'monitor').map((e) => `${e.user_id}:${e.report_id}`));
       const monitored = new Set([...members.values()].filter((m) => m.monitor && paid.has(`${m.user_id}:${m.report_id}`)).map((m) => m.report_id));
       return [...reports.values()].filter((r) => monitored.has(r.id) && r.next_scan_at && r.next_scan_at <= nowIso).slice(0, limit).map(clone);
     },

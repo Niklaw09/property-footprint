@@ -18,7 +18,7 @@ export interface Api {
   rescan(reportId: string): Promise<ReportView>;
   mine(): Promise<MyReportSummary[]>;
   selftest(): Promise<SelftestResult>;
-  checkout(reportId: string, lang: string): Promise<string>; // URL to send the browser to
+  checkout(reportId: string, lang: string, plan?: 'quick' | 'monitor'): Promise<string>; // URL to send the browser to
   confirm(sessionId: string): Promise<{ ok: boolean; reportId?: string }>;
   claimPromo(reportId: string, lang: string): Promise<ReportView>;
   review(reportId: string, rating: number, comment: string): Promise<void>;
@@ -55,7 +55,7 @@ function liveApi(sb: SupabaseClient): Api {
     rescan: (reportId) => call({ action: 'rescan', reportId }),
     mine: () => call({ action: 'mine' }),
     selftest: () => call({ action: 'selftest' }),
-    checkout: async (reportId, lang) => (await call<{ url: string }>({ action: 'checkout', reportId, lang, claimToken: claims.get(reportId) })).url,
+    checkout: async (reportId, lang, plan = 'monitor') => (await call<{ url: string }>({ action: 'checkout', reportId, lang, plan, claimToken: claims.get(reportId) })).url,
     confirm: (sessionId) => call({ action: 'confirm', sessionId }),
     claimPromo: (reportId, lang) => call({ action: 'claim_promo', reportId, lang, claimToken: claims.get(reportId) }),
     review: (reportId, rating, comment) => call({ action: 'review', reportId, rating, comment }),

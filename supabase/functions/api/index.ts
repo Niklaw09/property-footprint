@@ -1,7 +1,7 @@
 // HomePrint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
 //
-// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM.
+// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, QUICK_PRICE_CENTS (default 499), optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM.
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { createService, httpVerifier, ServiceError } from '../_shared/service.ts';
@@ -34,6 +34,7 @@ const service = createService({
   limits: { perDay: Number(env('SCAN_DAILY_LIMIT')) || 300 },
   ipSalt: env('IP_HASH_SALT') || env('CRON_SECRET'),
   priceCents: Number(env('PRICE_CENTS')) || 1999,
+  quickPriceCents: Number(env('QUICK_PRICE_CENTS')) || 499,
   // Launch offer: first N homes unlock free, one per account. PROMO_FREE_LIMIT=0 turns it off.
   promoLimit: env('PROMO_FREE_LIMIT') === '' ? 1000 : Number(env('PROMO_FREE_LIMIT')) || 0,
   reviewUrl: env('GOOGLE_REVIEW_URL') || undefined,
@@ -148,15 +149,19 @@ Deno.serve(async (req) => {
         const reportId = String(body.reportId ?? '');
         const view = await service.getReport({ reportId, userId: uid, claimToken: body.claimToken ?? null });
         if (!view.member) return json({ error: 'forbidden' }, 403);
-        // Already unlocked (e.g. through the launch offer, or a payment in another tab): never charge twice.
-        if (view.unlocked) return json({ url: `#/r/${reportId}` });
+        // Already has what they asked for (e.g. through the launch offer, or a payment in another tab): never charge twice.
+        const quote = await service.quote({ userId: uid, reportId, plan: body.plan === 'quick' ? 'quick' : 'monitor' });
+        if (!quote) return json({ url: `#/r/${reportId}` });
         const base = safeReturnBase(req.headers.get('origin'));
         const back = `${base}/#/r/${reportId}`;
+        const label = quote.plan === 'quick' ? 'Quick scan' : quote.upgrade ? 'upgrade to 12 months' : '12 months';
         const session = await createCheckoutSession({
           secretKey: env('STRIPE_SECRET_KEY'),
-          priceId: env('STRIPE_PRICE_ID') || undefined,
-          amountCents: service.price.cents,
-          productName: `HomePrint by High Point Perspective: ${view.display} (12 months)`,
+          // A fixed Stripe Price only fits the full 12-month plan; the Quick scan and the upgrade use an inline amount.
+          priceId: quote.plan === 'monitor' && !quote.upgrade ? env('STRIPE_PRICE_ID') || undefined : undefined,
+          amountCents: quote.cents,
+          plan: quote.plan,
+          productName: `HomePrint by High Point Perspective: ${view.display} (${label})`,
           successUrl: `${base}/?paid={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(`#/r/${reportId}`)}`,
           cancelUrl: back,
           userId: uid,
@@ -172,7 +177,7 @@ Deno.serve(async (req) => {
         if (!env('STRIPE_SECRET_KEY')) return json({ error: 'not_configured' }, 503);
         const s = await getCheckoutSession(env('STRIPE_SECRET_KEY'), String(body.sessionId ?? ''));
         if (!s.paid || s.userId !== uid || !s.reportId) return json({ ok: false });
-        await service.grantPurchase({ userId: uid, reportId: s.reportId, sessionId: s.id, amountCents: s.amountCents });
+        await service.grantPurchase({ userId: uid, reportId: s.reportId, sessionId: s.id, amountCents: s.amountCents, plan: s.plan });
         return json({ ok: true, reportId: s.reportId });
       }
       case 'claim_promo': {
