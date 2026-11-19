@@ -115,6 +115,8 @@ export interface SelftestRow {
   total: number;
   lookups: { key: string; ok: boolean; found: number; error?: string }[];
   queryErrors: number;
+  /** First search error, e.g. "auth: HTTP 403 Unauthorized", to diagnose failed searches. */
+  firstError?: string;
   ms: number;
 }
 
@@ -135,6 +137,7 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
       rows.push({
         address: h.address, expected: h.expect.length, found: h.expect.length - missed.length, missed, total: r.findings.length,
         lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
+        firstError: r.diagnostics.queryErrors[0] ? `${r.diagnostics.queryErrors[0].code}: ${r.diagnostics.queryErrors[0].detail ?? ''}`.trim() : undefined,
       });
     }
   };
