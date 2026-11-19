@@ -1,7 +1,7 @@
 // The finding engine: portal lookups + web/image/video search -> deterministic address matching -> findings.
 
 import { type Address, DIRECTIONS, canon, canonTokens, rawTokens, SUFFIXES, matchAddress, streetLine, streetPhrases, urlText, displayAddress, type MatchLevel } from './address.ts';
-import { type PhotoStatus, canFetch, checkPhotos } from './photos.ts';
+import { type PhotoStatus, canFetch, checkPage } from './photos.ts';
 import { type Candidate, type FetchLike, type PortalLookup, type SearchProvider, type SearchQuery, PORTAL_LOOKUPS, ProviderError } from './providers.ts';
 import { SITES, SEARCH_GROUPS, NAMED_FILL_DOMAINS, type MediaType, type Site, type SiteCategory, canonicalUrl, hostOf, isDetailPage, isIgnored, needsPropertyUrl, siteFor, unknownSite, urlNamesProperty } from './sites.ts';
 
@@ -289,10 +289,14 @@ export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null
     else f.photos = 'unknown';
   }
   // Hard cap: whatever hasn't answered in 7 seconds stays "unknown", so the check can never hold up a scan.
-  const results: PhotoStatus[] = new Array(todo.length).fill('unknown');
-  const work = todo.slice(0, 40).map((f, i) => checkPhotos(f.url, fetchFn!).then((r) => { results[i] = r; }));
+  const results: { status: PhotoStatus; image?: string }[] = todo.map(() => ({ status: 'unknown' }));
+  const work = todo.slice(0, 40).map((f, i) => checkPage(f.url, fetchFn!).then((r) => { results[i] = r; }));
   await Promise.race([Promise.all(work), new Promise((r) => setTimeout(r, PHOTO_DEADLINE_MS))]);
-  todo.forEach((f, i) => (f.photos = results[i]));
+  todo.forEach((f, i) => {
+    f.photos = results[i].status;
+    // The page's own share photo, shown on the report as proof of what the page shows.
+    if (results[i].image && !f.thumbnails.includes(results[i].image!)) f.thumbnails.push(results[i].image!);
+  });
 }
 
 /**

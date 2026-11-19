@@ -139,6 +139,10 @@ export interface Limits {
   manualRescansPer30Days: number;
 }
 
+// Locked results show the page's title, snippet and photo, never its link.
+const stripUrls = (s: string) => (s ?? '').replace(/\b(?:https?:\/\/|www\.)\S+/gi, '').replace(/\s+/g, ' ').trim();
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
 export class ServiceError extends Error {
   constructor(public code: 'invalid_address' | 'payment_required' | 'busy' | 'daily_limit' | 'limit_anon' | 'limit_user' | 'limit_homes' | 'captcha' | 'scan_failed' | 'not_found' | 'forbidden' | 'too_soon' | 'promo_over' | 'promo_used' | 'invalid_review', public detail?: string) {
     super(code);
@@ -153,6 +157,12 @@ export interface LockedFinding {
   category: SiteCategory;
   media: MediaType[];
   confidence: Finding['confidence'];
+  /** Proof before purchase: what the page shows, without its link. */
+  domain: string;
+  title: string;
+  snippet: string;
+  thumb: string | null;
+  photos?: Finding['photos'];
 }
 export interface OpenFinding extends Finding {
   locked: false;
@@ -328,7 +338,11 @@ export function createService(cfg: ServiceConfig) {
     const visible = unlocked ? rows : live;
     const findings: ViewFinding[] = visible.map((r) => {
       if (!unlocked && !r.preview) {
-        return { locked: true, id: r.fid, siteName: r.data.siteName, category: r.data.category, media: r.data.media, confidence: r.data.confidence };
+        return {
+          locked: true, id: r.fid, siteName: r.data.siteName, category: r.data.category, media: r.data.media, confidence: r.data.confidence,
+          domain: r.data.domain, title: clip(stripUrls(r.data.title), 110), snippet: clip(stripUrls(r.data.snippet), 180),
+          thumb: r.data.thumbnails?.[0] ?? null, photos: r.data.photos,
+        };
       }
       const t = tasks.get(r.fid);
       return {
