@@ -1,7 +1,7 @@
 // HomePrint API (Supabase Edge Function, Deno).
 // POST /functions/v1/api  { action, ...params }   Authorization: Bearer <user JWT or anon key>
 
-// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, QUICK_PRICE_CENTS (default 499), optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM, ADMIN_EMAILS (who may run the self-test).
+// Secrets: SERPER_API_KEY (or BRAVE_API_KEY), CRON_SECRET, TURNSTILE_SECRET_KEY, STRIPE_SECRET_KEY, SITE_URL, optional STRIPE_PRICE_ID, PRICE_CENTS, QUICK_PRICE_CENTS (default 499), optional SCAN_DAILY_LIMIT, IP_HASH_SALT, optional PROMO_FREE_LIMIT (default 1000), GOOGLE_REVIEW_URL, RESEND_API_KEY + EMAIL_FROM, ADMIN_EMAILS (who may run the self-test), SELFTEST_KEY (lets the owner run it without signing in).
 // SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { createService, httpVerifier, ServiceError } from '../_shared/service.ts';
@@ -95,13 +95,18 @@ Deno.serve(async (req) => {
   }
 
   // Accuracy self-test on the 10 public test homes. About 200 to 250 search credits a run, so at most 10 runs a
-  // day, signed-in only, and only the addresses in ADMIN_EMAILS (comma-separated) when that secret is set.
+  // day. Allowed with the owner's SELFTEST_KEY, or signed in (only ADMIN_EMAILS, comma-separated, when that is set).
   if (body.action === 'selftest') {
     if (!provider()) return json({ error: 'not_configured' }, 503);
-    const who = await userFrom(req);
-    if (!who) return json({ error: 'forbidden', detail: 'sign_in_required' }, 403);
-    const admins = env('ADMIN_EMAILS').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
-    if (admins.length && !admins.includes((who.email ?? '').toLowerCase())) return json({ error: 'forbidden' }, 403);
+    const key = env('SELFTEST_KEY');
+    const keyOk = key.length >= 12 && typeof body.key === 'string' && sameText(body.key, key);
+    if (!keyOk) {
+      if (typeof body.key === 'string' && body.key) return json({ error: 'forbidden', detail: 'bad_key' }, 403);
+      const who = await userFrom(req);
+      if (!who) return json({ error: 'forbidden', detail: 'sign_in_required' }, 403);
+      const admins = env('ADMIN_EMAILS').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+      if (admins.length && !admins.includes((who.email ?? '').toLowerCase())) return json({ error: 'forbidden' }, 403);
+    }
     try {
       const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
       if ((n as number) > 10) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
@@ -206,3 +211,10 @@ Deno.serve(async (req) => {
   }
 });
 
+/** Compare two strings in constant time (for the self-test key). */
+function sameText(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}

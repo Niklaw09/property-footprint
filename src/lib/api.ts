@@ -17,7 +17,7 @@ export interface Api {
   membership(reportId: string, patch: { ownerName?: string; monitor?: boolean }): Promise<void>;
   rescan(reportId: string): Promise<ReportView>;
   mine(): Promise<MyReportSummary[]>;
-  selftest(): Promise<SelftestResult>;
+  selftest(key?: string): Promise<SelftestResult>;
   checkout(reportId: string, lang: string, plan?: 'quick' | 'monitor'): Promise<string>; // URL to send the browser to
   confirm(sessionId: string): Promise<{ ok: boolean; reportId?: string }>;
   claimPromo(reportId: string, lang: string): Promise<ReportView>;
@@ -59,7 +59,7 @@ function liveApi(sb: SupabaseClient): Api {
     membership: (reportId, patch) => call({ action: 'membership', reportId, ...patch }),
     rescan: (reportId) => call({ action: 'rescan', reportId }),
     mine: () => call({ action: 'mine' }),
-    selftest: () => call({ action: 'selftest' }),
+    selftest: (key) => call({ action: 'selftest', ...(key ? { key } : {}) }),
     checkout: async (reportId, lang, plan = 'monitor') => (await call<{ url: string }>({ action: 'checkout', reportId, lang, plan, claimToken: claims.get(reportId) })).url,
     confirm: (sessionId) => call({ action: 'confirm', sessionId }),
     claimPromo: (reportId, lang) => call({ action: 'claim_promo', reportId, lang, claimToken: claims.get(reportId) }),

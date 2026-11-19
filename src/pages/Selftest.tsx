@@ -1,4 +1,7 @@
 import { useState } from 'react';
+
+const KEY = 'pf.selftestKey';
+const readKey = () => { try { return localStorage.getItem(KEY) ?? ''; } catch { return ''; } };
 import { Loader2, Play, CheckCircle2, XCircle } from 'lucide-react';
 import type { SelftestResult } from '@/lib/api';
 import { errorText } from '@/lib/errors';
@@ -11,15 +14,20 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
   const [state, setState] = useState<'idle' | 'running' | 'done'>('idle');
   const [res, setRes] = useState<SelftestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [key, setKey] = useState(readKey);
   const run = async () => {
     setState('running'); setError(null);
-    try { setRes(await ctx.api.selftest()); setState('done'); } catch (e) { setError(errorText(e, t)); setState('idle'); }
+    try { localStorage.setItem(KEY, key.trim()); } catch { /* ignore */ }
+    try { setRes(await ctx.api.selftest(key.trim() || undefined)); setState('done'); } catch (e) { setError(errorText(e, t)); setState('idle'); }
   };
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <h1 className="font-serif text-3xl font-semibold text-navy-900">Accuracy check</h1>
       <p className="mt-2 text-sm text-navy-500">Scans 10 real homes sold in fall 2026 and counts how many of their confirmed pages the live engine finds. Uses about 200 to 300 search credits; limited to 10 runs a day.</p>
-      <button onClick={run} disabled={state === 'running'} className="btn-primary mt-6">
+      <label className="mt-6 block max-w-sm text-sm font-medium text-navy-700">Test key <span className="font-normal text-navy-400">(SELFTEST_KEY in Bolt; remembered on this browser. Not needed if you're signed in.)</span>
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} autoComplete="off" className="input-field mt-1" />
+      </label>
+      <button onClick={run} disabled={state === 'running'} className="btn-primary mt-4">
         {state === 'running' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}{state === 'running' ? 'Running (about a minute)…' : 'Run accuracy check'}
       </button>
       {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
