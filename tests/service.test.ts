@@ -30,7 +30,7 @@ describe('service', () => {
   it('anonymous scan shows counts and exactly one open preview with no leaked URLs', async () => {
     const { svc } = setup();
     const { view, claimToken } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: null, ip: '1.1.1.1' });
-    expect(view.counts.total).toBe(3);
+    expect(view.counts.total).toBe(4); // Zillow, Trulia (same id), Estately, HAR
     const open = view.findings.filter((f) => !f.locked);
     expect(open).toHaveLength(1);
     expect((open[0] as any).siteKey).toBe('zillow'); // portal lookup wins the preview
@@ -126,7 +126,7 @@ describe('service', () => {
     expect(e.task.status).toBe('sent');
     expect(after.history[0]).toMatchObject({ kind: 'scheduled', goneCount: 1 });
     const mine = await svc.myReports('u1');
-    expect(mine[0]).toMatchObject({ removed: 1, total: 3 });
+    expect(mine[0]).toMatchObject({ removed: 1, total: 4 });
     await expect(svc.rescan({ userId: 'u1', reportId: view.id })).rejects.toMatchObject({ code: 'too_soon' }); // 12h gap
     advance(13 * 3600000);
     await svc.rescan({ userId: 'u1', reportId: view.id });

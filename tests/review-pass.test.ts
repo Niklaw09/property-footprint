@@ -52,7 +52,7 @@ describe('search failures', () => {
   it('treats a scan as failed when every search fails, even if Zillow answered (e.g. out of credits)', async () => {
     const broke: SearchProvider = { name: 'serper', async search() { throw new Error('Not enough credits'); } };
     const r = await runScan(a, { provider: broke, lookups: [zillow] });
-    expect(r.findings).toHaveLength(1);
+    expect(r.findings.map((f) => f.siteKey)).toEqual(['zillow', 'trulia']); // Trulia shares Zillow's id
     expect(scanFailed(r)).toBe(true);
   });
 
@@ -148,11 +148,11 @@ describe('priority sites', () => {
 });
 
 describe('search budget', () => {
-  it('worst case stays at 18 searches per scan (14 first-round + 4 fill-in)', async () => {
+  it('worst case stays at 25 searches per scan (15 first-round + 10 fill-in)', async () => {
     const { buildQueries, fillQueries } = await import('@engine/engine.ts');
     const a = parseAddress('14425 American Kestrel Dr, Austin, TX 78738');
-    expect(buildQueries(a).filter((q) => !q.fallbackOnly).length).toBe(14);
-    expect(fillQueries(a, []).length).toBeLessThanOrEqual(4);
+    expect(buildQueries(a).filter((q) => !q.fallbackOnly).length).toBe(15);
+    expect(fillQueries(a, []).length).toBeLessThanOrEqual(10);
     expect(fillQueries(a, []).flatMap((q) => q.sites ?? [])).toContain('kw.com');
   });
 

@@ -40,13 +40,13 @@ describe('junk from the Nov 19 run', () => {
     expect(f).toHaveLength(3);
   });
 
-  it('calls a social post exact only when its own link or title names the home', () => {
+  it('keeps a social post only when its own link or title names the home', () => {
     const tpa = parseAddress('14732 San Marsala Ct, Tampa, FL 33626');
     const f = evaluate(tpa, [
       c('https://www.facebook.com/SmithAndAssociatesRE/posts/todays-featuredhome-is-in-tampas-sunset-park-and-listed-by-the-wolfe-group/10155080095333452/', 'Smith & Associates', 'Just sold: 14732 San Marsala Ct, Tampa, FL 33626', 'search:video_social'),
       c('https://www.instagram.com/p/DdCSrdblFqG/', 'Agent on Instagram: "Just listed 14732 San Marsala Ct, Tampa FL 33626"', '', 'search:video_social'),
     ]);
-    expect(f.find((x) => x.siteKey === 'facebook')!.confidence).toBe('likely');
+    expect(f.find((x) => x.siteKey === 'facebook')).toBeUndefined(); // snippet-only: another home's post
     expect(f.find((x) => x.siteKey === 'instagram')!.confidence).toBe('exact');
   });
 
@@ -99,7 +99,8 @@ describe('MLS number search', () => {
     const r = await runScan(a, { provider, lookups: [] });
     const fills = seen.filter((q) => q.label === 'fill');
     expect(fills.length).toBeGreaterThan(0);
-    expect(fills.length).toBeLessThanOrEqual(4);
+    expect(fills.length).toBeLessThanOrEqual(10);
+    expect(fills.every((q) => (q.sites ?? []).length <= 3)).toBe(true);
     const asked = fills.flatMap((q) => q.sites ?? []);
     expect(asked).not.toContain('realtor.com'); // already found
     expect(asked).not.toContain('trulia.com'); // already found

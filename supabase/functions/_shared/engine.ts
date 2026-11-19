@@ -63,6 +63,8 @@ export function buildQueries(a: Address): SearchQuery[] {
     ...SEARCH_GROUPS.map((g) => ({ label: g.label, kind: 'web' as const, phrases, extra: a.city, sites: g.domains })),
     { label: 'media_words', kind: 'web', phrases, extra: `${a.city} ("virtual tour" OR "3D tour" OR "floor plan" OR video OR photos)` },
     { label: 'images', kind: 'images', phrases, extra: loc },
+    // The big portals block page checks, so ask Google Images which of their pages show this home's photos.
+    { label: 'images_portals', kind: 'images', phrases, extra: a.city, sites: ['zillow.com', 'realtor.com', 'redfin.com', 'trulia.com', 'homes.com', 'compass.com', 'coldwellbankerhomes.com', 'century21.com'] },
     { label: 'videos', kind: 'videos', phrases, extra: a.city },
     // Plain-text searches that stand in for the site: searches on search plans that don't allow operators.
     ...['plain_mls', 'plain_sold', 'plain_idx', 'plain_agent'].map((label) => ({ label, kind: 'web' as const, phrases, extra: `${loc}${a.zip ? ` ${a.zip}` : ''}`.trim(), fallbackOnly: true })),
@@ -119,14 +121,24 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
     if (!isLookup && needsPropertyUrl(site) && !urlNamesProperty(c.url, a.number, a.zip)) { bump('not_a_property_page'); continue; }
 
     // Match on the URL slug first (strongest), then on URL + title + snippet.
-    const slug = urlText(c.url);
+    // Social post links glue words together ("j-u-s-t-l-i-s-t-e-d5062-perth-street"), so split letters from digits.
+    const slug = site.category === 'social' ? urlText(c.url).replace(/([a-z])(\d)/g, '$1 $2') : urlText(c.url);
     const text = isLookup ? `${c.addressText ?? ''}` : `${slug} | ${c.title} | ${c.snippet}`;
     const m = matchAddress(a, text);
     if (m.level === 'none') { bump('address_mismatch'); continue; }
     // Social posts and videos: a search snippet can quote a page's other posts. Only call it exact when
     // the post's own link or title names the home; a snippet-only match is shown as a possible match.
-    if (!isLookup && m.level === 'exact' && (site.category === 'social' || site.category === 'video')
-      && matchAddress(a, `${slug} | ${c.title}`).level === 'none') m.level = 'likely';
+    // Facebook and Instagram snippets often quote a page's other posts, so a social post must name the home in
+    // its own link or title; a snippet-only match was nearly always a post about another home.
+    if (!isLookup && (site.category === 'social' || site.category === 'video')
+      && matchAddress(a, `${slug} | ${c.title}`).level === 'none') {
+      if (site.category === 'social') { bump('social_snippet_only'); continue; }
+      if (m.level === 'exact') m.level = 'likely';
+    }
+    // Condos: a slug like ".../103-2727-w-43rd-st" names unit 103 of our building, not unit 402.
+    if (!isLookup && a.unit && otherUnitInSlug(a, c.url)) { bump('other_unit'); continue; }
+    // Rental sites' building pages ("2727 W 43rd St Apartments") don't show a given condo unit.
+    if (!isLookup && a.unit && site.category === 'rental' && m.reasons.includes('unit_missing')) { bump('building_page'); continue; }
     // A slug that names a *different* house number on the same street is a different property even if the snippet mentions ours.
     if (!isLookup && slugContradicts(a, slug)) { bump('slug_contradiction'); continue; }
 
@@ -162,6 +174,14 @@ export function evaluate(a: Address, candidates: Candidate[], rejected: Record<s
     });
   }
   const findings = [...byUrl.values()];
+  // A brand page known only from a sister site's listing id (never seen in search) is shown as a possible match:
+  // the listing is the same, but that brand may have taken its copy down.
+  for (const f of findings) {
+    if (f.foundVia.every((v) => v === 'derived:anywhere')) {
+      f.confidence = 'likely';
+      if (!f.evidence.includes('same_listing_id')) f.evidence.push('same_listing_id');
+    } else if (f.foundVia.some((v) => v.startsWith('derived:')) && !f.evidence.includes('same_listing_id')) f.evidence.push('same_listing_id');
+  }
   findings.sort((x, y) =>
     (x.confidence === 'exact' ? 0 : 1) - (y.confidence === 'exact' ? 0 : 1) ||
     CATEGORY_ORDER.indexOf(x.category) - CATEGORY_ORDER.indexOf(y.category) ||
@@ -194,15 +214,77 @@ function slugContradicts(a: Address, slug: string): boolean {
   return true;
 }
 
+/** True when the URL's last path parts put a different unit number right before our house number ("103-2727-w-43rd"). */
+export function otherUnitInSlug(a: Address, url: string): boolean {
+  let path = '';
+  try { path = decodeURIComponent(new URL(url).pathname).toLowerCase(); } catch { return false; }
+  const num = a.number.toLowerCase();
+  const unit = a.unit!.toLowerCase();
+  for (const part of path.split('/')) {
+    const m = part.match(new RegExp(`^(?:unit-|apt-|ste-)?([a-z]?\\d{1,5}[a-z]?)-${num.replace(/[^a-z0-9]/g, '')}-`));
+    if (m && m[1] !== unit) return true;
+  }
+  return false;
+}
+
+// ─── Sister-site pages ─────────────────────────────────────────────────────
+// Some sites share one listing id, so a page found on one points to the same listing on the others.
+// These URLs are built from ids in pages that search already found and matched to this address;
+// nothing is guessed. Checked on the Nov 2026 test homes:
+// - Trulia's home id is Zillow's zpid: trulia.com/home/<address>-<zpid>.
+// - Century 21, ERA, Better Homes and Gardens and Coldwell Banker (all Anywhere brands) share "lid-" ids.
+// - HomeFinder and Realtor.com share property ids (M12345-67890).
+
+const ANYWHERE_PATHS: Record<string, string> = {
+  'century21.com': 'https://www.century21.com/homes/detail',
+  'era.com': 'https://www.era.com/property/detail',
+  'bhgre.com': 'https://www.bhgre.com/home/detail',
+  'coldwellbanker.com': 'https://www.coldwellbanker.com',
+};
+
+function addressSlug(a: Address): string | null {
+  if (!a.zip || a.unit) return null;
+  return [a.number, a.preDir, a.street, a.suffix, a.city, a.state, a.zip]
+    .filter(Boolean).join(' ').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+export function siblingCandidates(a: Address, findings: Finding[]): Candidate[] {
+  const out: Candidate[] = [];
+  const title = displayAddress(a);
+  for (const f of findings) {
+    if (f.confidence !== 'exact') continue;
+    if (f.siteKey === 'zillow') {
+      const zpid = f.url.match(/(\d+)_zpid/)?.[1];
+      const slug = addressSlug(a);
+      if (zpid && slug) out.push({ url: `https://www.trulia.com/home/${slug}-${zpid}`, title, snippet: '', via: 'derived:zillow' });
+    }
+    const lid = f.url.match(/\/([a-z]{2})\/([^/]+)\/([^/]+)\/(lid-[A-Za-z0-9]+)/);
+    if (lid && Object.keys(ANYWHERE_PATHS).some((d) => f.domain === d || f.domain.endsWith('.' + d))) {
+      for (const base of Object.values(ANYWHERE_PATHS)) out.push({ url: `${base}/${lid[1]}/${lid[2]}/${lid[3]}/${lid[4]}`, title, snippet: '', via: 'derived:anywhere' });
+    }
+    if (f.siteKey === 'homefinder') {
+      const p = f.url.match(/\/realestateandhomes-detail\/[^/?#]+/)?.[0];
+      if (p) out.push({ url: `https://www.realtor.com${p}`, title, snippet: '', via: 'derived:homefinder' });
+    }
+  }
+  return out;
+}
+
 /**
  * Label each finding with whether it still shows photos. Google showing an image from the page counts as
  * seen. Otherwise, when allowed, open the page (all at once, at most ~6 seconds in total).
  */
 const PHOTO_DEADLINE_MS = 7000;
 export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null): Promise<void> {
+  // An image result can point at another link to the same page (".../70333738_zpid/" vs ".../14425-...-/70333738_zpid/").
+  // Same site and the same listing id means the same page.
+  const ids = (f: Finding) => new Set(f.url.match(/\d{6,}|lid-[A-Za-z0-9]+|M\d{5}-\d{5}/g) ?? []);
+  const withPics = findings.filter((f) => f.thumbnails.length);
   const todo: Finding[] = [];
   for (const f of findings) {
-    if (f.thumbnails.length) f.photos = 'seen';
+    const mine = ids(f);
+    if (!f.thumbnails.length && mine.size && withPics.some((g) => g.siteKey === f.siteKey && [...ids(g)].some((t) => mine.has(t)))) f.photos = 'seen';
+    else if (f.thumbnails.length) f.photos = 'seen';
     else if (fetchFn && f.category !== 'social' && f.category !== 'video' && canFetch(f.domain)) todo.push(f);
     else f.photos = 'unknown';
   }
@@ -213,15 +295,22 @@ export async function labelPhotos(findings: Finding[], fetchFn: FetchLike | null
   todo.forEach((f, i) => (f.photos = results[i]));
 }
 
-/** Fill-in searches for national sites the first round didn't find (up to 4 searches of 6 sites). */
+/**
+ * Fill-in searches for national sites the first round didn't find. Google gives a big site's whole street
+ * to a site: search (neighbors on the same street fill the page), so each search asks for only 2 sites, then 3
+ * for the less important ones, up to 10 searches. For a condo the unit number is added as a plain word.
+ */
 export function fillQueries(a: Address, prelim: Finding[]): SearchQuery[] {
   const have = prelim.filter((f) => f.confidence === 'exact').map((f) => f.domain);
   const missing = NAMED_FILL_DOMAINS
     .filter((d) => d !== 'har.com' || a.state === 'TX') // HAR only lists Texas homes
     .filter((d) => !have.some((h) => h === d || h.endsWith('.' + d)));
   const out: SearchQuery[] = [];
-  for (let i = 0; i < missing.length && out.length < 4; i += 6) {
-    out.push({ label: 'fill', kind: 'web', phrases: streetPhrases(a), extra: a.city, sites: missing.slice(i, i + 6), num: 10 });
+  const extra = a.unit ? `${a.city} ${a.unit.toUpperCase()}` : a.city;
+  for (let i = 0; i < missing.length && out.length < 10;) {
+    const n = out.length < 6 ? 2 : 3;
+    out.push({ label: 'fill', kind: 'web', phrases: streetPhrases(a), extra, sites: missing.slice(i, i + n), num: 20 });
+    i += n;
   }
   return out;
 }
@@ -342,6 +431,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
   // Google's results (mixed results vary from run to run). The MLS-number search (listingIds) is no longer
   // run: it mostly found small agent sites, which aren't worth the searches.
   if (opts.provider) {
+    candidates.push(...siblingCandidates(a, evaluate(a, candidates, {})));
     const prelim = evaluate(a, candidates, {});
     const round2: SearchQuery[] = fillQueries(a, prelim);
     diagnostics.queries += round2.length;
@@ -349,6 +439,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
     await Promise.all(Array.from({ length: Math.min(round2.length, opts.concurrency ?? 8) }, worker));
   }
 
+  candidates.push(...siblingCandidates(a, evaluate(a, candidates, {})));
   diagnostics.searchMode = opts.provider?.mode?.();
   diagnostics.candidates = candidates.length;
   const findings = addCoveredSiblings(evaluate(a, candidates, diagnostics.rejected));
