@@ -63,7 +63,12 @@ export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): Sear
       } catch (e) {
         throw new ProviderError('serper', (e as Error).name === 'AbortError' ? 'timeout' : 'network');
       }
-      if (!res.ok) throw classify('serper', res.status);
+      if (!res.ok) {
+        const err = classify('serper', res.status);
+        // Keep Serper's own reason (e.g. invalid key, out of credits) for diagnostics. It never contains the key.
+        err.message = `HTTP ${res.status} ${(await res.text().catch(() => '')).slice(0, 160)}`.trim();
+        throw err;
+      }
       const data = await res.json();
       if (q.kind === 'images') {
         return (data.images ?? []).map((r: Record<string, string>) => ({

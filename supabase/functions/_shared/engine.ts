@@ -33,7 +33,7 @@ export interface DirectCheck {
 export interface ScanDiagnostics {
   provider: string;
   queries: number;
-  queryErrors: { label: string; code: string }[];
+  queryErrors: { label: string; code: string; detail?: string }[];
   lookups: { key: string; ok: boolean; found: number; error?: string }[];
   candidates: number;
   rejected: Record<string, number>;
@@ -253,7 +253,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
         const rows = await withTimeout(timeoutMs, (s) => opts.provider!.search(q!, s));
         candidates.push(...rows);
       } catch (e) {
-        diagnostics.queryErrors.push({ label: q.label, code: e instanceof ProviderError ? e.code : 'network' });
+        diagnostics.queryErrors.push({ label: q.label, code: e instanceof ProviderError ? e.code : 'network', detail: String((e as Error)?.message ?? '').slice(0, 200) });
       }
     }
   };

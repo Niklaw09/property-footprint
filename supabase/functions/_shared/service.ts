@@ -212,7 +212,7 @@ const defaultToken = (): string => {
 };
 
 const DAY_MS = 24 * 3600 * 1000;
-const RECHECK_MS = 15 * DAY_MS; // twice a month
+const RECHECK_MS = 60 * DAY_MS; // automatic re-check every 60 days
 const YEAR_MS = 365 * DAY_MS;
 const PROMO_BUCKET = 'promo:launch';
 const PROMO_TTL = 10 * 365 * 24 * 3600; // effectively permanent
@@ -465,7 +465,7 @@ export function createService(cfg: ServiceConfig) {
         user_id: input.userId, report_id: input.reportId, session_id: input.sessionId, amount_cents: input.amountCents,
         paid_at: now().toISOString(), paid_until: new Date(base + YEAR_MS).toISOString(), lang: input.lang === 'es' ? 'es' : 'en',
       });
-      // Start the re-check clock from the purchase.
+      // Start the 60-day re-check clock from the purchase.
       if (granted && (!report.next_scan_at || new Date(report.next_scan_at).getTime() > now().getTime() + RECHECK_MS)) {
         await store.updateReport(report.id, { next_scan_at: new Date(now().getTime() + RECHECK_MS).toISOString() });
       }
@@ -514,7 +514,7 @@ export function createService(cfg: ServiceConfig) {
       return sent;
     },
 
-    /** Called hourly by pg_cron. Re-scans paid, monitored reports whose twice-monthly re-check is due. */
+    /** Called hourly by pg_cron. Re-scans paid, monitored reports whose 60-day re-check is due. */
     async runDue(limit = 5): Promise<{ scanned: number; failed: number }> {
       const due = await store.dueMonitoredReports(now().toISOString(), limit);
       let scanned = 0;
@@ -544,7 +544,7 @@ export function httpVerifier(fetchFn: typeof fetch = fetch) {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 8000);
     try {
-      const res = await fetchFn(url, { method: 'GET', redirect: 'manual', signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0 PropertyFootprint-Verifier' } });
+      const res = await fetchFn(url, { method: 'GET', redirect: 'manual', signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0 HomePrint-Verifier' } });
       if (res.status === 404 || res.status === 410) return 'gone';
       if (res.status >= 200 && res.status < 300) return 'live';
       return 'unknown'; // redirects, bot walls (403/429) and server errors prove nothing

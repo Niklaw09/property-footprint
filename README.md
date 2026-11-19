@@ -1,12 +1,14 @@
-# My Property Footprint
+# HomePrint
 
 Find every website still showing a home's listing photos, 3D tours, videos and floor plans, and get step-by-step help removing each one.
+
+Live at [homeprint.online](https://homeprint.online).
 
 - **Finding engine**: asks Zillow's and Redfin's own address lookup for the exact property page, then runs ~10 targeted Google searches (via [Serper](https://serper.dev)) across 60+ portals, brokerage/IDX sites, tour hosts, photographer property websites, video and rental sites, plus image and video search.
 - **Strict address matching**: every result must match house number + street (+ suffix and directionals) and city or ZIP. Other units in the building, neighbors' pages, maps, people-search and government sites are filtered out. URLs only ever come from a portal or search response; nothing is generated.
 - **30 removal playbooks** (English and Spanish) with direct links, contacts, sources and a "checked on" date, plus 5 pre-written request letters (site support, listing agent/MLS, photographer, formal privacy request, uploader).
 - **$19.99 per home (Stripe Checkout)**: a one-time payment unlocks every link, the removal steps and letters, request tracking (to do, sent, waiting, removed, can't remove) and saves the home to the account for 12 months. No subscription. Payment is enforced on the server.
-- **Re-checks twice a month**: paid, monitored homes are re-scanned every 15 days for 12 months, plus 2 on-demand scans per 30 days (at least 12 hours apart). Pages that disappear are checked directly (404/410 = verified gone).
+- **Re-checks every 60 days**: paid, monitored homes are re-scanned automatically every 60 days for 12 months, plus 2 on-demand scans per 30 days (at least 12 hours apart). Pages that disappear are checked directly (404/410 = verified gone).
 - **Launch offer**: the first 1,000 homes unlock free (one per account), with a live "spots left" counter on the home page and report. Set `PROMO_FREE_LIMIT` to change the number, or `0` to end it. Scan limits and the daily cap still apply.
 - **Reviews (optional, never rewarded)**: after someone starts on their requests, the report asks for a 1 to 5 star review and links to Google. About a week after a home is unlocked, one follow-up email asks the same. Reviews are never required for the free unlock or anything else, and everyone sees the Google link whatever they rated, since Google and the FTC ban incentivized and filtered ("gated") reviews. On-site reviews are stored privately in `reviews`; nothing is published on the site.
 - **Locked results enforced on the server**: anonymous visitors get counts and one preview; locked results never include URLs in the response.
