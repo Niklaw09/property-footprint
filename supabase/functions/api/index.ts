@@ -109,7 +109,8 @@ Deno.serve(async (req) => {
     }
     try {
       const { data: n } = await db.rpc('bump_bucket', { p_bucket: `selftest:${new Date().toISOString().slice(0, 10)}`, p_ttl_seconds: 2 * 86400 });
-      if ((n as number) > 10) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
+      // The owner's key gets a higher cap (about 250 credits a run).
+      if ((n as number) > (keyOk ? 30 : 10)) return json({ error: 'busy', detail: 'selftest_daily_limit' }, 429);
       return json(await runSelftest(() => ({ provider: provider(), checkPhotos: true })));
     } catch (e) {
       console.error('selftest', e);
