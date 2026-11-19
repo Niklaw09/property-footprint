@@ -69,6 +69,7 @@ const UNIT_WORDS = new Set(['apt', 'apartment', 'unit', 'ste', 'suite', 'bldg', 
 /** Lowercase, strip accents and split into alphanumeric tokens. "#402" becomes "# 402". */
 export function rawTokens(text: string): string[] {
   return text
+    .replace(/(\d)\s*½/g, '$1 1/2')
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
@@ -81,6 +82,7 @@ export function rawTokens(text: string): string[] {
 /** Canonical token: suffix and direction words become USPS abbreviations, ordinal words become numbers. */
 export function canon(token: string): string {
   if (ORDINAL_WORDS[token]) return ORDINAL_WORDS[token];
+  if (token === 'saint') return 'st'; // "Saint Louis" = "St. Louis", "Saint Andrews Dr" = "St Andrews Dr"
   if (SUFFIXES[token]) return SUFFIXES[token];
   if (DIRECTIONS[token]) return DIRECTIONS[token];
   return token;
@@ -173,11 +175,13 @@ export function parseAddress(input: string): Address {
   }
 
   // Street line
-  const st = streetPart.replace(/\./g, '').replace(/#\s*/g, '# ').split(' ').filter(Boolean);
-  const numM = st[0]?.match(/^(\d+[a-z]?(?:-\d+[a-z]?)?)$/i);
+  const st = streetPart.replace(/(\d)\s*½/g, '$1 1/2').replace(/\./g, '').replace(/#\s*/g, '# ').split(' ').filter(Boolean);
+  // "14425", "12-34" (Queens), "N1234" (Wisconsin grid addresses)
+  const numM = st[0]?.match(/^(\d+[a-z]?(?:-\d+[a-z]?)?|[nsew]\d+)$/i);
   if (!numM) throw new AddressError('missing_number');
-  const number = numM[1].toLowerCase();
+  let number = numM[1].toLowerCase();
   let toks = st.slice(1);
+  if (toks[0] === '1/2') { number += ' 1/2'; toks = toks.slice(1); } // "123 1/2 Main St" is its own address
 
   // Unit: "#402", "Apt 4B", "Unit 3", "Ste 100"
   let unit: string | undefined;
@@ -324,6 +328,8 @@ export function matchAddress(a: Address, text: string): MatchResult {
     const zips = toks.filter((t) => /^\d{5}$/.test(t));
     if (a.zip && zips.includes(a.zip)) r.push('zip');
     else if (a.zip && zips.length > 0 && zips.every((z) => z !== a.zip) && !hasCity(toks, a.city)) continue; // a different ZIP and no city: different property
+    // Same street and city name in another state ("123 Main St, Springfield, MO" for Springfield, IL).
+    if (!r.includes('zip') && otherStateAfterCity(text, toks, a)) continue;
     if (hasCity(toks, a.city)) r.push('city');
     if (toks.includes(a.state.toLowerCase())) r.push('state');
 
@@ -332,6 +338,22 @@ export function matchAddress(a: Address, text: string): MatchResult {
   }
   if (best.level === 'none' && reasons.length) best.reasons = reasons;
   return best;
+}
+
+/** True when the city is followed by a state other than ours, and our state appears nowhere. */
+function otherStateAfterCity(text: string, toks: string[], a: Address): boolean {
+  if (toks.includes(a.state.toLowerCase())) return false;
+  const c = canonTokens(a.city);
+  if (!c.length) return false;
+  for (let i = findSeq(toks, c); i !== -1; i = findSeq(toks, c, i + 1)) {
+    const next = toks[i + c.length];
+    if (!next || next.length !== 2 || !STATE_CODES.has(next.toUpperCase())) continue;
+    // Two-letter words like "in", "or", "me" only count as a state when written in capitals ("Springfield, MO")
+    // or followed by a ZIP code ("springfield-mo-65801").
+    const after = toks[i + c.length + 1];
+    if (new RegExp(`\\b${next.toUpperCase()}\\b`).test(text) || (after && /^\d{5}$/.test(after) && after !== a.zip)) return true;
+  }
+  return false;
 }
 
 function hasCity(toks: string[], city: string): boolean {

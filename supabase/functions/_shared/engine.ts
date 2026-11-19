@@ -21,6 +21,7 @@ export interface Finding {
   foundVia: string[];
   playbook: string;
   coveredBy?: string; // e.g. trulia is removed through zillow
+  missedRuns?: number; // consecutive re-scans that didn't see this page (kept on the stored copy only)
 }
 
 export interface DirectCheck {
@@ -301,7 +302,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
       }
     }
   };
-  await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 5 }, worker)]);
+  await Promise.all([...lookupTasks, ...Array.from({ length: opts.concurrency ?? 8 }, worker)]);
 
   // Second round: search the listing's MLS number. Many agent sites (Real Geeks and other IDX sites) name
   // the page after it, and Google ranks them low for the street address.
@@ -310,7 +311,7 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
     const pivots = ids.map((id) => ({ label: 'mls_id', kind: 'web' as const, phrases: [id.toUpperCase()], extra: a.city }));
     diagnostics.queries += pivots.length;
     queue.push(...pivots);
-    await Promise.all(Array.from({ length: Math.min(pivots.length, opts.concurrency ?? 5) }, worker));
+    await Promise.all(Array.from({ length: Math.min(pivots.length, opts.concurrency ?? 8) }, worker));
   }
 
   diagnostics.searchMode = opts.provider?.mode?.();
@@ -327,9 +328,13 @@ export async function runScan(a: Address, opts: EngineOptions): Promise<ScanResu
   };
 }
 
-/** True when every source failed, so "no results" would be a lie. */
+/**
+ * True when the results can't be trusted as complete: every search failed (e.g. the search account ran out
+ * of credits), or there were no searches and every lookup failed. A Zillow-only result would look like a
+ * clean report with one page, so it's treated as a failure and nothing is cached.
+ */
 export function scanFailed(r: ScanResult): boolean {
   const lookupsOk = r.diagnostics.lookups.some((l) => l.ok);
-  const searchOk = r.diagnostics.queries > 0 && r.diagnostics.queryErrors.length < r.diagnostics.queries;
-  return !lookupsOk && !searchOk;
+  if (r.diagnostics.queries > 0) return r.diagnostics.queryErrors.length >= r.diagnostics.queries;
+  return !lookupsOk;
 }

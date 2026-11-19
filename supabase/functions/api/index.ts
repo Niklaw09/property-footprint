@@ -148,6 +148,8 @@ Deno.serve(async (req) => {
         const reportId = String(body.reportId ?? '');
         const view = await service.getReport({ reportId, userId: uid, claimToken: body.claimToken ?? null });
         if (!view.member) return json({ error: 'forbidden' }, 403);
+        // Already unlocked (e.g. through the launch offer, or a payment in another tab): never charge twice.
+        if (view.unlocked) return json({ url: `#/r/${reportId}` });
         const base = safeReturnBase(req.headers.get('origin'));
         const back = `${base}/#/r/${reportId}`;
         const session = await createCheckoutSession({

@@ -12,6 +12,7 @@ import type { AppCtx } from '@/App';
 import type { Strings } from '@/i18n/strings';
 
 const CATS: SiteCategory[] = ['portal', 'tour', 'property_site', 'video', 'brokerage', 'rental', 'social', 'other'];
+const COLLAPSE_AFTER = 6;
 const MEDIA_ICON: Record<MediaType, typeof Images> = { photos: Images, tour: Box, video: Video, floorplan: FileText, listing: Building2 };
 
 function mediaLabel(m: MediaType, t: Strings) {
@@ -42,6 +43,7 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   const [rescanning, setRescanning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     try {
@@ -81,7 +83,9 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       setBuying(false);
     }
   };
-  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c) })).filter((g) => g.items.length);
+  // Named sites first; within a group, exact matches before possible ones (the server already sorts by confidence).
+  const named = (f: ViewFinding) => (f.locked ? 1 : f.siteKey.startsWith('web:') ? 1 : 0);
+  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => named(a) - named(b)) })).filter((g) => g.items.length);
 
   const setTask = async (f: OpenFinding, status: TaskStatus, note?: string) => {
     await ctx.api.task(view.id, f.id, status, note ?? f.task?.note ?? '');
@@ -170,16 +174,31 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       )}
 
       {/* Findings */}
-      {grouped.map(({ c, items }) => (
+      {grouped.map(({ c, items }) => {
+        // Agent sites can run to dozens of pages that all copy the MLS listing: show a few, explain the shortcut.
+        const cap = c === 'brokerage' && items.length > COLLAPSE_AFTER && !showAll[c] ? COLLAPSE_AFTER : items.length;
+        return (
         <section key={c} className="mt-10">
           <h2 className="section-title">{catLabel(c, t)} <span className="ml-1 text-base font-normal text-navy-400">{items.length}</span></h2>
+          {c === 'brokerage' && items.length > 3 && (
+            <p className="mt-1 text-sm text-navy-500">
+              {t.agentSitesNote}{' '}
+              <button onClick={() => setDrawer({ pb: PLAYBOOKS.mls })} className="font-medium text-sage-700 underline underline-offset-2">{t.startHereCta}</button>
+            </p>
+          )}
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {items.map((f) => f.locked
+            {items.slice(0, cap).map((f) => f.locked
               ? <LockedCard key={f.id} f={f} onUnlock={unlock} />
               : <FindingCard key={f.id} f={f} member={view.unlocked} onRemove={() => setDrawer({ pb: playbookFor(f.coveredBy ?? f.playbook), finding: f })} onStatus={(s) => setTask(f, s)} />)}
           </div>
+          {cap < items.length && (
+            <button onClick={() => setShowAll((s) => ({ ...s, [c]: true }))} className="btn-secondary mt-3 w-full py-2 sm:w-auto">
+              {t.showAllSites.replace('{n}', String(items.length))}
+            </button>
+          )}
         </section>
-      ))}
+        );
+      })}
 
       {/* Quick checks */}
       {view.checks.length > 0 && (
