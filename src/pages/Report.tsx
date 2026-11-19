@@ -5,6 +5,7 @@ import { ApiError, claims, type OpenFinding, type ReportView, type TaskStatus, t
 import { viewCache } from '@/lib/cache';
 import { errorText } from '@/lib/errors';
 import { go, href } from '@/lib/router';
+import { siteLabel } from '@/lib/siteLabel';
 import { PLAYBOOKS, playbookFor, playbookName, type Playbook } from '@engine/playbooks.ts';
 import type { MediaType, SiteCategory } from '@engine/sites.ts';
 import PlaybookView from '@/components/PlaybookView';
@@ -308,7 +309,7 @@ function Evidence({ f }: { f: OpenFinding }) {
 }
 
 function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member: boolean; onRemove: () => void; onStatus: (s: TaskStatus) => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const done = f.task?.status === 'removed' || !!f.goneVerifiedAt;
   const [imgOk, setImgOk] = useState(true);
   return (
@@ -316,7 +317,7 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="font-semibold text-navy-900">{f.siteName}</p>
+            <p className="font-semibold text-navy-900">{siteLabel(f.siteName, lang)}</p>
             {f.preview && !member && <span className="rounded-full bg-sage-600 px-2 py-0.5 text-[11px] font-medium text-white">{t.previewBadge}</span>}
             {f.confidence === 'exact'
               ? <span className="rounded-full bg-sage-100 px-2 py-0.5 text-[11px] font-medium text-sage-800">{t.exact}</span>
@@ -481,14 +482,14 @@ function ReviewCard({ view, ctx, started }: { view: ReportView; ctx: AppCtx; sta
 }
 
 function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>; onUnlock: () => void }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [imgOk, setImgOk] = useState(true);
   return (
     <button onClick={onUnlock} className="card group flex flex-col text-left transition hover:border-sage-300">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="font-semibold text-navy-900">{f.siteName}</p>
+            <p className="font-semibold text-navy-900">{siteLabel(f.siteName, lang)}</p>
             {f.photos === 'seen' && <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[11px] font-medium text-navy-700">{t.photosSeen}</span>}
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
@@ -528,13 +529,13 @@ function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, onUnlock }:
         <div className="sticky top-0 z-10 -mx-5 flex items-start justify-between gap-4 border-b border-navy-100 bg-white/95 px-5 pb-3 pt-[max(env(safe-area-inset-top),1.25rem)] backdrop-blur sm:-mx-7 sm:px-7">
           <div className="min-w-0">
             <p className="eyebrow">{t.howToRemove}</p>
-            <h2 className="font-serif text-2xl font-semibold text-navy-900">{f?.siteName ?? playbookName(drawer.pb, lang)}</h2>
+            <h2 className="font-serif text-2xl font-semibold text-navy-900">{f ? siteLabel(f.siteName, lang) : playbookName(drawer.pb, lang)}</h2>
             {f && <a href={f.url} target="_blank" rel="noopener noreferrer" className="link mt-1 flex max-w-full items-center gap-1 text-xs"><span className="truncate">{f.url}</span><ExternalLink className="h-3 w-3 shrink-0" /></a>}
           </div>
           <button onClick={onClose} aria-label={t.close} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream-100 text-navy-500 hover:bg-navy-50 hover:text-navy-800"><X className="h-5 w-5" /></button>
         </div>
         <div className="mt-5">
-          <PlaybookView pb={drawer.pb} address={view.display} siteName={f?.siteName}
+          <PlaybookView pb={drawer.pb} address={view.display} siteName={f && siteLabel(f.siteName, lang)}
             urls={f ? [f.url] : drawer.pb.key === 'mls' ? allUrls : []} ownerName={view.ownerName} onOwnerName={onOwnerName} />
         </div>
         {f && onSave && (
