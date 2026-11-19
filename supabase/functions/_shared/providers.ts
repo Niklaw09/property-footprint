@@ -46,30 +46,71 @@ export function renderGoogleQuery(q: SearchQuery): string {
   return s.trim();
 }
 
+/**
+ * Simpler forms of a query for search accounts that reject advanced operators
+ * (Serper's free tier answers "Query pattern not allowed for free accounts").
+ * Level 1 drops site: and OR, keeping one quoted phrase. Level 2 also drops the quotes.
+ * Results are still verified by strict address matching, so simpler queries only cost recall.
+ */
+export function simplifyQuery(q: SearchQuery, level: number): string {
+  if (level <= 0) return renderGoogleQuery(q);
+  const phrase = q.phrases[0] ?? '';
+  const main = level === 1 ? `"${phrase}"` : phrase;
+  return `${main} ${q.extra ?? ''}`.trim();
+}
+
+const RESTRICTED = /not allowed for free accounts|query pattern not allowed/i;
+
 /** Serper.dev: Google results. https://serper.dev */
 export function serperProvider(apiKey: string, fetchFn: FetchLike = fetch): SearchProvider {
+  // Shared across queries in this scan: once a pattern is refused, use the simpler form from then on,
+  // and don't pay twice for queries that collapse to the same text.
+  let level = 0;
+  const seen = new Map<string, Promise<any>>();
+  async function call(endpoint: string, text: string, num: number, signal?: AbortSignal): Promise<any> {
+    let res: Response;
+    try {
+      res = await fetchFn(`https://google.serper.dev/${endpoint}`, {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: text, num, gl: 'us', hl: 'en' }),
+        signal,
+      });
+    } catch (e) {
+      throw new ProviderError('serper', (e as Error).name === 'AbortError' ? 'timeout' : 'network');
+    }
+    if (!res.ok) {
+      const err = classify('serper', res.status);
+      // Keep Serper's own reason (e.g. invalid key, out of credits) for diagnostics. It never contains the key.
+      err.message = `HTTP ${res.status} ${(await res.text().catch(() => '')).slice(0, 160)}`.trim();
+      throw err;
+    }
+    return res.json();
+  }
   return {
     name: 'serper',
     async search(q, signal) {
       const endpoint = q.kind === 'images' ? 'images' : q.kind === 'videos' ? 'videos' : 'search';
-      let res: Response;
-      try {
-        res = await fetchFn(`https://google.serper.dev/${endpoint}`, {
-          method: 'POST',
-          headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ q: renderGoogleQuery(q), num: q.num ?? 20, gl: 'us', hl: 'en' }),
-          signal,
-        });
-      } catch (e) {
-        throw new ProviderError('serper', (e as Error).name === 'AbortError' ? 'timeout' : 'network');
+      let data: any;
+      for (;;) {
+        const text = simplifyQuery(q, level);
+        const key = `${endpoint}|${text}`;
+        let p = seen.get(key);
+        if (!p) {
+          p = call(endpoint, text, level > 0 ? 10 : q.num ?? 20, signal);
+          seen.set(key, p);
+        }
+        try {
+          data = await p;
+          break;
+        } catch (e) {
+          if (e instanceof ProviderError && RESTRICTED.test(e.message) && level < 2) {
+            level = Math.max(level, simplifyQuery(q, level) === text ? level + 1 : level);
+            continue;
+          }
+          throw e;
+        }
       }
-      if (!res.ok) {
-        const err = classify('serper', res.status);
-        // Keep Serper's own reason (e.g. invalid key, out of credits) for diagnostics. It never contains the key.
-        err.message = `HTTP ${res.status} ${(await res.text().catch(() => '')).slice(0, 160)}`.trim();
-        throw err;
-      }
-      const data = await res.json();
       if (q.kind === 'images') {
         return (data.images ?? []).map((r: Record<string, string>) => ({
           url: r.link, title: r.title ?? '', snippet: '', thumbnail: r.thumbnailUrl ?? r.imageUrl, via: `images:${q.label}`,
