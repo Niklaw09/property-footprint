@@ -114,24 +114,23 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="eyebrow">{t.reportFor}</p>
-          <h1 className="mt-2 flex items-start gap-2 font-display text-[clamp(1.5rem,6vw,2.1rem)] font-bold leading-tight text-navy-900"><MapPin className="mt-1 h-5 w-5 shrink-0 text-sage-600 sm:mt-2" />{view.display}</h1>
-          <p className="mt-1.5 font-mono text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
+          <h1 className="mt-2 flex items-start gap-2 font-serif text-[clamp(1.5rem,6vw,2.1rem)] font-semibold leading-tight text-navy-900"><MapPin className="mt-1 h-5 w-5 shrink-0 text-sage-600 sm:mt-2" />{view.display}</h1>
+          <p className="mt-1.5 text-xs text-navy-400">{t.scannedOn} {fmtDate(view.scannedAt, lang)}</p>
         </div>
         <a href={href({ name: 'home' })} className="btn-secondary self-start py-2.5 sm:self-auto"><Search className="h-4 w-4" />{t.scanAnother}</a>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-navy-100 bg-white shadow-soft">
         <div className="grid sm:grid-cols-[1fr_2fr]">
-          <div className="relative flex flex-col justify-center overflow-hidden bg-navy-900 p-5 text-white sm:p-6">
-            <div className="grid-bg absolute inset-0 opacity-40 invert" />
-            <p className="relative num text-6xl font-semibold leading-none tracking-tight">{view.counts.total}</p>
-            <p className="relative mt-2 text-sm text-navy-200">{t.sourcesFound}</p>
+          <div className="relative flex flex-col justify-center overflow-hidden border-b border-navy-100 bg-sage-50 p-5 sm:border-b-0 sm:border-r sm:p-6">
+            <p className="relative num font-serif text-6xl font-semibold leading-none text-navy-900">{view.counts.total}</p>
+            <p className="relative mt-2 text-sm text-navy-600">{t.sourcesFound}</p>
             {view.unlocked && view.counts.total + view.counts.gone > 0 && (
               <div className="relative mt-4">
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-sage-400 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
+                <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                  <div className="h-full rounded-full bg-sage-500 transition-all" style={{ width: `${Math.round((removedCount / Math.max(open.length, 1)) * 100)}%` }} />
                 </div>
-                <p className="mt-1.5 font-mono text-xs text-navy-300">{removedCount} / {open.length} {t.progressLabel}</p>
+                <p className="mt-1.5 text-xs text-navy-500">{removedCount} / {open.length} {t.progressLabel}</p>
               </div>
             )}
           </div>
@@ -327,7 +326,7 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
-        {f.thumbnails[0] && imgOk && <img src={f.thumbnails[0]} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-16 w-24 shrink-0 rounded-md object-cover ring-1 ring-navy-100" />}
+        {f.thumbnails[0] && imgOk && <img src={f.thumbnails[0]} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-[72px] w-[104px] shrink-0 rounded-lg bg-cream-200 object-cover ring-1 ring-navy-100" />}
       </div>
       {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
       {f.snippet && <p className="mt-1 line-clamp-2 text-xs text-navy-500">{f.snippet}</p>}
@@ -387,37 +386,39 @@ function PriceCard({ view, signedIn, buying, onUnlock, notice }: { view: ReportV
     );
   }
   return (
-    <div className="mt-4 rounded-xl border border-sage-200 bg-sage-50 p-5">
-      <h2 className="font-serif text-lg font-semibold text-navy-900">{t.plansTitle}</h2>
+    <div className="mt-4 rounded-2xl border border-sage-200 bg-sage-50 p-4 sm:p-5">
+      <h2 className="font-serif text-xl font-semibold text-navy-900">{t.plansTitle}</h2>
       <p className="mt-1 text-sm text-navy-600">{t.plansIntro}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <div className="flex flex-col rounded-lg border border-navy-100 bg-white p-4">
+        <div className="flex flex-col rounded-xl border border-navy-100 bg-white p-4 sm:p-5">
           <p className="font-semibold text-navy-900">{t.quickName}</p>
-          <p className="mt-1 text-2xl font-semibold text-navy-900">{quick}</p>
+          <p className="num mt-1 font-serif text-3xl font-semibold text-navy-900">{quick}</p>
           <ul className="mt-3 grid gap-1 text-sm text-navy-700">
             {t.quickBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
           </ul>
           <p className="mt-3 text-xs text-navy-500">{t.quickNote.replace('{price}', quick)}</p>
-          <button onClick={() => onUnlock('quick')} disabled={buying} className="btn-secondary mt-auto w-full py-2">
-            {signedIn ? t.quickCta : t.signInToBuy}
-          </button>
+          <div className="mt-auto pt-4">
+            <button onClick={() => onUnlock('quick')} disabled={buying} className="btn-secondary w-full py-2.5">
+              {t.quickCta} · {quick}
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col rounded-lg border-2 border-sage-500 bg-white p-4">
+        <div className="flex flex-col rounded-xl border-2 border-sage-500 bg-white p-4 shadow-soft sm:p-5">
           <div className="flex items-center gap-2">
             <p className="font-semibold text-navy-900">{t.planName}</p>
             <span className="rounded-full bg-sage-600 px-2 py-0.5 text-[11px] font-medium text-white">{t.planBadge}</span>
           </div>
-          <p className="mt-1 text-2xl font-semibold text-navy-900">{dollars}</p>
+          <p className="num mt-1 font-serif text-3xl font-semibold text-navy-900">{dollars}</p>
           <ul className="mt-3 grid gap-1 text-sm text-navy-700">
             {t.priceBullets.map((b) => <li key={b} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-sage-600" />{b}</li>)}
           </ul>
           <button onClick={() => onUnlock('monitor')} disabled={buying} className="btn-primary mt-4 w-full">
             {buying ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />}
-            {signedIn ? t.planCta.replace('{price}', dollars) : t.signInToBuy}
+            {t.planCta.replace('{price}', dollars)}
           </button>
         </div>
       </div>
-      <p className="mt-3 text-xs text-navy-500">{t.plansNote}</p>
+      <p className="mt-3 text-xs text-navy-500">{t.plansNote}{!signedIn && <> {t.signInFirst}</>}</p>
       {notice && <p className="mt-2 text-xs text-red-700">{notice}</p>}
     </div>
   );
@@ -493,7 +494,7 @@ function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
         {f.thumb && imgOk
-          ? <img src={f.thumb} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-16 w-24 shrink-0 rounded-md object-cover ring-1 ring-navy-100" />
+          ? <img src={f.thumb} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-[72px] w-[104px] shrink-0 rounded-lg bg-cream-200 object-cover ring-1 ring-navy-100" />
           : <Lock className="h-4 w-4 shrink-0 text-navy-300 group-hover:text-sage-600" />}
       </div>
       {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
@@ -523,14 +524,14 @@ function RemovalDrawer({ drawer, view, onClose, onOwnerName, onSave, onUnlock }:
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-navy-950/40" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="h-full w-full max-w-xl overflow-y-auto bg-white p-5 shadow-xl sm:p-7" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-4">
+      <div className="h-full w-full max-w-xl overflow-y-auto bg-white px-5 pb-8 shadow-xl sm:px-7" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 -mx-5 flex items-start justify-between gap-4 border-b border-navy-100 bg-white/95 px-5 pb-3 pt-[max(env(safe-area-inset-top),1.25rem)] backdrop-blur sm:-mx-7 sm:px-7">
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-navy-400">{t.howToRemove}</p>
-            <h2 className="font-serif text-xl font-semibold text-navy-900">{f?.siteName ?? drawer.pb.name}</h2>
+            <p className="eyebrow">{t.howToRemove}</p>
+            <h2 className="font-serif text-2xl font-semibold text-navy-900">{f?.siteName ?? drawer.pb.name}</h2>
             {f && <a href={f.url} target="_blank" rel="noopener noreferrer" className="link mt-1 flex max-w-full items-center gap-1 text-xs"><span className="truncate">{f.url}</span><ExternalLink className="h-3 w-3 shrink-0" /></a>}
           </div>
-          <button onClick={onClose} aria-label={t.close} className="rounded-md p-1 text-navy-400 hover:bg-navy-50 hover:text-navy-700"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} aria-label={t.close} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream-100 text-navy-500 hover:bg-navy-50 hover:text-navy-800"><X className="h-5 w-5" /></button>
         </div>
         <div className="mt-5">
           <PlaybookView pb={drawer.pb} address={view.display} siteName={f?.siteName}

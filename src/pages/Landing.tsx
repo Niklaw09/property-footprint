@@ -50,14 +50,13 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="hero-glow absolute inset-0" />
-        <div className="grid-bg absolute inset-0" />
         <div className="safe-x relative mx-auto grid max-w-6xl items-center gap-10 pb-12 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pb-20 lg:pt-20">
           <div className="fade-in">
             <p className="inline-flex items-center gap-2 rounded-full border border-sage-200 bg-white/80 px-3 py-1 shadow-sm">
               <span className="pulse-dot h-2 w-2 rounded-full bg-sage-500" />
               <span className="eyebrow">{d.eyebrow}</span>
             </p>
-            <h1 className="mt-4 font-display text-[clamp(2rem,8.5vw,3.4rem)] font-extrabold leading-[1.05] tracking-tight text-navy-900">{t.heroTitle}</h1>
+            <h1 className="mt-4 font-serif text-[clamp(2rem,8vw,3.25rem)] font-semibold leading-[1.1] text-navy-900">{t.heroTitle}</h1>
             <p className="mt-4 max-w-xl text-[17px] leading-relaxed text-navy-600 sm:text-lg">{t.heroBody}</p>
 
             <form onSubmit={submit} className="mt-7 max-w-xl">
@@ -124,7 +123,7 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sage-50 text-sage-700 ring-1 ring-sage-100"><Icon className="h-5 w-5" /></div>
                 <span className="num text-xs font-semibold text-navy-300">{d.stepLabel} 0{i + 1}</span>
               </div>
-              <h3 className="mt-5 font-display text-lg font-bold text-navy-900">{title}</h3>
+              <h3 className="mt-5 font-serif text-lg font-semibold text-navy-900">{title}</h3>
               <p className="mt-2 text-[15px] leading-relaxed text-navy-500">{body}</p>
             </li>
           ))}
@@ -144,13 +143,13 @@ export default function Landing({ ctx }: { ctx: AppCtx }) {
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-1.5">
-              {SITES.map((s) => <span key={s} className="chip bg-white font-mono text-[11px]">{s}</span>)}
+              {SITES.map((s) => <span key={s} className="chip bg-white">{s}</span>)}
             </div>
           </div>
-          <div className="self-start rounded-2xl bg-navy-900 p-6 text-white shadow-lift">
-            <h2 className="font-display text-xl font-bold">{t.whyTitle}</h2>
+          <div className="self-start rounded-2xl bg-navy-800 p-6 text-white shadow-lift">
+            <h2 className="font-serif text-xl font-semibold">{t.whyTitle}</h2>
             <p className="mt-3 text-[15px] leading-relaxed text-navy-200">{t.whyBody}</p>
-            <div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-4 text-sm font-semibold text-sage-300"><RefreshCw className="h-4 w-4" />{t.monitorTitle}</div>
+            <div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-4 text-sm font-semibold text-sage-200"><RefreshCw className="h-4 w-4" />{t.monitorTitle}</div>
           </div>
         </div>
       </section>
@@ -167,22 +166,20 @@ function HeroVisual() {
   const chips = [
     { site: 'zillow.com', what: `32 ${d.samplePhotos}`, icon: Images, cls: 'left-3 top-4 sm:-left-6 sm:top-8', delay: '0.3s' },
     { site: 'matterport.com', what: d.sampleTour, icon: Box, cls: 'right-3 top-[38%] sm:-right-6', delay: '0.6s' },
-    { site: 'youtube.com', what: d.sampleVideo, icon: Video, cls: 'left-3 bottom-16 sm:-left-8 sm:bottom-20', delay: '0.9s' },
+    { site: 'youtube.com', what: d.sampleVideo, icon: Video, cls: 'left-3 bottom-[5.5rem] sm:-left-8 sm:bottom-24', delay: '0.9s' },
   ];
   return (
     <div aria-hidden="true" className="relative mx-auto w-full max-w-lg lg:max-w-none">
-      <div className="scan-frame">
-        <span className="corner tl" /><span className="corner tr" /><span className="corner bl" /><span className="corner br" />
+      <div>
         <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-navy-100 shadow-lift ring-1 ring-navy-900/5" style={{ ['--h' as string]: '100%' }}>
           <img src="/assets/hero.png" alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-navy-950/50 via-transparent to-transparent" />
-          <div className="scan-line" style={{ animationDelay: '0.4s' }} />
-          <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-xl bg-white/95 px-3.5 py-2.5 shadow-soft backdrop-blur">
+          <div className="absolute inset-0 bg-gradient-to-t from-navy-950/30 via-transparent to-transparent" />
+          <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-xl bg-white/95 px-3.5 py-2.5 shadow-soft backdrop-blur">
             <div>
-              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-navy-400">{d.sampleLabel}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-navy-400">{d.sampleLabel}</p>
               <p className="text-sm font-semibold text-navy-900"><span className="num">10</span> {d.sampleFound}</p>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-md bg-sage-50 px-2 py-1 font-mono text-[11px] font-semibold text-sage-700"><Check className="h-3.5 w-3.5" />{t.exact}</span>
+            <span className="inline-flex items-center gap-1 shrink-0 whitespace-nowrap rounded-full bg-sage-100 px-2.5 py-1 text-[11px] font-semibold text-sage-800"><Check className="h-3.5 w-3.5" />{t.exact}</span>
           </div>
         </div>
       </div>
@@ -190,7 +187,7 @@ function HeroVisual() {
         <div key={site} className={`float-in absolute ${cls} flex items-center gap-2 rounded-xl border border-navy-100 bg-white/95 py-1.5 pl-1.5 pr-3 shadow-lift backdrop-blur`} style={{ animationDelay: delay }}>
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sage-50 text-sage-700"><I className="h-4 w-4" /></span>
           <span className="leading-tight">
-            <span className="block font-mono text-[11px] font-semibold text-navy-900">{site}</span>
+            <span className="block text-xs font-semibold text-navy-900">{site}</span>
             <span className="block text-[11px] text-navy-500">{what}</span>
           </span>
         </div>
@@ -218,7 +215,7 @@ function Scanning({ address }: { address: string }) {
           </div>
           <div className="min-w-0">
             <p className="eyebrow">{t.scanningTitle}</p>
-            <h1 className="mt-1 font-display text-lg font-bold leading-snug text-navy-900 sm:text-xl">{address}</h1>
+            <h1 className="mt-1 font-serif text-lg font-semibold leading-snug text-navy-900 sm:text-xl">{address}</h1>
           </div>
         </div>
         <ol className="space-y-1 p-3 sm:p-4" aria-live="polite">
@@ -235,7 +232,7 @@ function Scanning({ address }: { address: string }) {
           <p className="text-xs text-navy-500">{d.scanSub}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {SITES.slice(0, 12).map((s, i) => (
-              <span key={s} className={`chip font-mono text-[11px] transition ${i < (step + 1) * 3 ? 'border-sage-200 bg-sage-50 text-sage-800' : ''}`}>{s}</span>
+              <span key={s} className={`chip tech text-[11px] transition ${i < (step + 1) * 3 ? 'border-sage-200 bg-sage-50 text-sage-800' : ''}`}>{s}</span>
             ))}
           </div>
           <p className="mt-4 text-xs text-navy-400">{t.scanNote}</p>
