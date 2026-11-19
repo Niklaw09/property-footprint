@@ -40,7 +40,7 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
                       const l = r.lookups.find((x) => x.key === k);
                       return <td key={k} className="pr-3">{l?.ok ? <span className="inline-flex items-center gap-1 text-sage-700"><CheckCircle2 className="h-4 w-4" />{l.found}</span> : <span className="inline-flex items-center gap-1 text-red-600"><XCircle className="h-4 w-4" />{l?.error ?? '—'}</span>}</td>;
                     })}
-                    <td>{r.queryErrors}</td>
+                    <td title={r.firstError}>{r.queryErrors}{r.firstError && <span className="block text-xs text-red-700">{r.firstError}</span>}</td>
                   </tr>
                 ))}
               </tbody>
