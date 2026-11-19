@@ -13,10 +13,11 @@ interface Props {
 }
 
 export function StatusBadge({ pb }: { pb: Playbook }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const checked = /^\d{4}-\d{2}-\d{2}$/.test(pb.checkedOn) ? new Date(`${pb.checkedOn}T12:00:00`).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : pb.checkedOn;
   const label = pb.status === 'verified' ? t.pbVerified : pb.status === 'researched' ? t.pbResearched : t.pbGeneral;
   const color = pb.status === 'verified' ? 'bg-sage-100 text-sage-800' : pb.status === 'researched' ? 'bg-navy-50 text-navy-700' : 'bg-cream-200 text-navy-600';
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${color}`}><BadgeCheck className="h-3 w-3" />{label} · {pb.checkedOn}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${color}`}><BadgeCheck className="h-3 w-3" />{label} · {checked}</span>;
 }
 
 export default function PlaybookView({ pb, address, siteName, urls, ownerName, onOwnerName }: Props) {

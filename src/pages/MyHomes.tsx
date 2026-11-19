@@ -32,8 +32,8 @@ export default function MyHomes({ ctx }: { ctx: AppCtx }) {
                 </div>
                 <p className="mt-1 text-xs text-navy-500">
                   {r.removed} / {r.total} {t.progressLabel}{r.inProgress ? ` · ${r.inProgress} ${t.stSent.toLowerCase()}` : ''}
-                  {r.paidUntil ? ` · ${t.paidUntil} ${new Date(r.paidUntil).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US')}` : ''}
-                  {r.monitor && r.paidUntil && r.nextScanAt ? ` · ${t.monitorOn} ${new Date(r.nextScanAt).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US')}` : ''}
+                  {r.paidUntil ? ` · ${t.paidUntil} ${new Date(r.paidUntil).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                  {r.monitor && r.paidUntil && r.nextScanAt ? ` · ${t.monitorOn} ${new Date(r.nextScanAt).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
                 </p>
               </div>
               <ArrowRight className="h-4 w-4 text-navy-300 group-hover:text-sage-600" />

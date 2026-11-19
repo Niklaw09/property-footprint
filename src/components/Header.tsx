@@ -6,14 +6,14 @@ import type { AppCtx } from '@/App';
 
 export default function Header({ ctx }: { ctx: AppCtx }) {
   const { t, lang, setLang } = useLang();
-  const navBtn = 'inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-navy-600 transition-colors hover:bg-navy-50 hover:text-navy-900 sm:px-3';
+  const navBtn = 'inline-flex min-h-[40px] items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-sm font-medium text-navy-600 transition-colors hover:bg-navy-50 hover:text-navy-900 sm:px-3';
   return (
-    <header className="sticky top-0 z-40 border-b border-navy-100/80 bg-cream-100/80 backdrop-blur-md supports-[backdrop-filter]:bg-cream-100/70">
+    <header className="sticky top-0 z-40 border-b border-navy-100/80 bg-cream-50/85 backdrop-blur-md">
       <div className="safe-x mx-auto flex max-w-6xl items-center justify-between gap-2 py-2.5 sm:px-6 sm:py-3">
         <a href={href({ name: 'home' })} className="flex shrink-0 items-center gap-2.5 rounded-lg">
           <BrandMark className="h-8 w-8 sm:h-9 sm:w-9" />
           <span className="flex flex-col leading-none">
-            <span className="font-display text-[17px] font-bold tracking-tight text-navy-900">{t.brand}</span>
+            <span className="font-serif text-lg font-semibold text-navy-900">{t.brand}</span>
             <span className="mt-1 hidden text-[11px] font-medium text-navy-400 sm:block">{t.byCompany}</span>
           </span>
         </a>
@@ -30,7 +30,7 @@ export default function Header({ ctx }: { ctx: AppCtx }) {
           <div className="ml-1 flex items-center rounded-lg border border-navy-200 bg-white p-0.5 shadow-sm" role="group" aria-label={t.langAria}>
             {(['en', 'es'] as const).map((l) => (
               <button key={l} onClick={() => setLang(l)} aria-pressed={lang === l}
-                className={`min-h-[30px] rounded-md px-2 font-mono text-[11px] font-semibold transition-colors sm:px-2.5 ${lang === l ? 'bg-navy-900 text-white' : 'text-navy-500 hover:text-navy-900'}`}>
+                className={`min-h-[30px] rounded-md px-2 text-xs font-semibold transition-colors sm:px-2.5 ${lang === l ? 'bg-navy-800 text-white' : 'text-navy-500 hover:text-navy-900'}`}>
                 {l.toUpperCase()}
               </button>
             ))}
