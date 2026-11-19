@@ -364,7 +364,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
     steps: [
       { en: 'Start with your own listing agent: send the listing agent letter asking them to make the photos private in the MLS and in syndication feeds. This fixes many sites at once.', es: 'Empiece con su propio agente del anuncio: envíe la carta pidiendo que haga privadas las fotos en el MLS y en las distribuciones. Esto arregla muchos sitios a la vez.' },
       { en: 'For this site, use its Contact page (or the agent’s email on the page) and send the site request letter with the exact link.', es: 'Para este sitio, use su página de contacto (o el correo del agente en la página) y envíe la carta con el enlace exacto.' },
-      { en: 'Wait 7 to 14 days. We re-check the page for you each week.', es: 'Espere de 7 a 14 días. Revisamos la página por usted cada semana.' },
+      { en: 'Wait 7 to 14 days, then press “Re-scan now” on your report to check that the page is gone.', es: 'Espere de 7 a 14 días y luego pulse “Volver a escanear” en su informe para comprobar que la página ya no está.' },
       KEEP_RECORDS,
     ],
     letters: ['listing_agent', 'site_support'],

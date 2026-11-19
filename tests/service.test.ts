@@ -105,7 +105,7 @@ describe('service', () => {
     await expect(svc.scan({ address: 'hello', userId: null, ip: 'x' })).rejects.toBeInstanceOf(ServiceError);
   });
 
-  it('tracks tasks, re-checks twice a month, limits manual re-scans and verifies removals', async () => {
+  it('tracks tasks, re-checks every 60 days, limits manual re-scans and verifies removals', async () => {
     const { svc, advance, setGone } = setup();
     const { view: v0 } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: 'u1', ip: '1' });
     await svc.grantPurchase({ userId: 'u1', reportId: v0.id, sessionId: 'cs_2', amountCents: 1999 });
@@ -115,9 +115,9 @@ describe('service', () => {
     // Site takes the page down
     results = { general: results.general.slice(1) };
     setGone(['https://www.estately.com/listings/info/14425-american-kestrel-dr-austin-tx-78738--2']);
-    advance(10 * 86400000);
+    advance(50 * 86400000);
     expect((await svc.runDue()).scanned).toBe(0); // not due yet
-    advance(6 * 86400000);
+    advance(11 * 86400000);
     expect((await svc.runDue()).scanned).toBe(1);
     const after = await svc.getReport({ reportId: view.id, userId: 'u1' });
     const e = after.findings.find((f) => f.id === estately.id) as any;

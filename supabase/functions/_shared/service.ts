@@ -187,7 +187,7 @@ const defaultToken = (): string => {
 };
 
 const DAY_MS = 24 * 3600 * 1000;
-const RECHECK_MS = 15 * DAY_MS; // twice a month
+const RECHECK_MS = 60 * DAY_MS; // automatic re-check every 60 days
 const YEAR_MS = 365 * DAY_MS;
 
 export function createService(cfg: ServiceConfig) {
@@ -428,7 +428,7 @@ export function createService(cfg: ServiceConfig) {
         user_id: input.userId, report_id: input.reportId, session_id: input.sessionId, amount_cents: input.amountCents,
         paid_at: now().toISOString(), paid_until: new Date(base + YEAR_MS).toISOString(),
       });
-      // Start the twice-monthly re-check clock from the purchase.
+      // Start the 60-day re-check clock from the purchase.
       if (granted && (!report.next_scan_at || new Date(report.next_scan_at).getTime() > now().getTime() + RECHECK_MS)) {
         await store.updateReport(report.id, { next_scan_at: new Date(now().getTime() + RECHECK_MS).toISOString() });
       }
@@ -437,7 +437,7 @@ export function createService(cfg: ServiceConfig) {
 
     price,
 
-    /** Called hourly by pg_cron. Re-scans paid, monitored reports whose twice-monthly re-check is due. */
+    /** Called hourly by pg_cron. Re-scans paid, monitored reports whose 60-day re-check is due. */
     async runDue(limit = 5): Promise<{ scanned: number; failed: number }> {
       const due = await store.dueMonitoredReports(now().toISOString(), limit);
       let scanned = 0;
