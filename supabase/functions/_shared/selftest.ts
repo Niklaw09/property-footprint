@@ -1,8 +1,11 @@
-// Built-in accuracy self-test: scans the 10 real homes from the Nov 2026 test and reports how many known pages were found.
+// Built-in accuracy self-test: scans 10 real homes sold in fall 2026 and reports how many of their known pages were found.
+// `expect` is the original hand-collected list. `confirmed` adds the pages a live run found with an exact address
+// match and that were checked by hand on Nov 19, 2026 (junk, other homes and unverifiable social posts left out).
+// Together they are the page list the headline score is measured against. Add new real pages here after each run.
 import { parseAddress } from './address.ts';
 import { runScan, type EngineOptions } from './engine.ts';
 
-export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
+export const SELFTEST_HOMES: { address: string; expect: string[]; confirmed?: string[] }[] = [
   {
     "address": "14425 American Kestrel Dr, Austin, TX 78738",
     "expect": [
@@ -16,6 +19,22 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://robertjfischer.realgeeks.com/property/3777682/",
       "https://www.houzeo.com/homes/14425-american-kestrel-dr-austin-tx-78738/hzid_6394d63e",
       "https://neuhausre.com/properties/austin/14425-american-kestrel-dr-01257001460000"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/14425-American-Kestrel-Dr_Austin_TX_78738_M87848-30096",
+      "https://www.realtor.com/rentals/details/14425-American-Kestrel-Dr_Austin_TX_78738_M87848-30096",
+      "https://www.homes.com/property/14425-american-kestrel-dr-austin-tx/k95kj5zh9w15e/",
+      "https://www.atproperties.com/3777682/14425-american-kestrel-dr-austin-texas-78738-unlockmls",
+      "https://www.bhhstx.com/property/105-3777682-14425-american-kestrel-dr-austin-TX-78738",
+      "https://austin.towers.net/idx/mls-3777682-14425_american_kestrel_dr_austin_tx_78738",
+      "https://heatherpowellgroup.com/listing/14425-american-kestrel-draustintravisresidential/",
+      "https://hoot.com/homes/8784830096/14425-american-kestrel-dr-austin-tx-78738",
+      "https://knoxre.com/home/14425-american-kestrel-dr-austin-tx-78738-b566afba",
+      "https://bridgetramey.com/home-search/listings/3081907227210817601-14425-American-Kestrel-DR",
+      "https://www.loriharingrealty.com/listings/details/14425-american-kestrel-dr-austin-tx/5322164/7616927/",
+      "https://www.texasrealestatesource.com/listing/austin-tx/78738/14425-american-kestrel-dr/44-1803523164/",
+      "https://treaustin.com/listing/14425-american-kestrel-dr-austin-tx-78738/ACT241393104",
+      "https://www.urbanspacerealtors.com/homes/14425-american-kestrel-dr-austin-tx-78738-c7191bdfe50b49b931f414abffc8df4c/"
     ]
   },
   {
@@ -25,6 +44,21 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.zillow.com/homedetails/70334856_zpid/",
       "https://neuhausre.com/properties/austin/6413-york-bridge-cir-04203601100000/",
       "https://atproperties.com/4191638/6413-york-bridge-cir-austin-texas-78749-unlockmls"
+    ],
+    "confirmed": [
+      "https://www.trulia.com/home/6413-york-bridge-cir-austin-tx-78749-70334856",
+      "https://www.realtor.com/realestateandhomes-detail/6413-York-Bridge-Cir_Austin_TX_78749_M87030-89620",
+      "https://www.homes.com/property/6413-york-bridge-cir-austin-tx/xslj194rpv2km/",
+      "https://www.movoto.com/austin-tx/6413-york-bridge-cir-austin-tx-78749/pid_i6x3bh54nh/",
+      "https://www.har.com/homedetail/6413-york-bridge-cir-austin-tx-78749/9106281",
+      "https://www.coldwellbankerhomes.com/tx/austin/6413-york-bridge-circle/pid_74186534/",
+      "https://www.avalaraustin.com/property/105-7982681-6413-york-bridge-cir-austin-TX-78749",
+      "https://austin.towers.net/idx/mls-4191638-6413_york_bridge_cir_austin_tx_78749",
+      "https://www.alexatxrealtor.com/idx/listing/TX-ABOR/4191638/6413-York-Bridge-Cir-Austin-TX-78749",
+      "https://dukesresidential.com/listing/actris/4191638/Austin/6413-York-Bridge-Circle/",
+      "https://easylivingaustin.com/listings/6413-york-bridge-circle-austin-tx-78749-1",
+      "https://landyfrostgroup.com/listing/actris/4191638/Austin/6413-York-Bridge-Circle/",
+      "https://www.spyglassrealty.com/listing/4191638-6413-york-bridge-circle-austin-tx-78749"
     ]
   },
   {
@@ -33,6 +67,16 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.redfin.com/AZ/Phoenix/4138-E-Tanglewood-Dr-85048/home/26878510",
       "https://www.zillow.com/homedetails/4138-E-Tanglewood-Dr-Phoenix-AZ-85048/8259511_zpid/",
       "https://valleygroupaz.realgeeks.com/property/7068179/"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/4138-E-Tanglewood-Dr_Phoenix_AZ_85048_M22813-31874",
+      "https://www.homes.com/property/4138-e-tanglewood-dr-phoenix-az/jd5grrbgts98p/",
+      "https://www.houzeo.com/homes/4138-e-tanglewood-dr-phoenix-az-85048/hzid_6e0e022d",
+      "https://www.coldwellbankerhomes.com/az/phoenix/4138-e-tanglewood-dr/pid_73347091/",
+      "https://www.exprealty.com/phoenix-az-real-estate/remington-trace-lot-110-217-tr-a-f/4138-e-tanglewood-dr",
+      "https://blairballin.com/home/4138-e-tanglewood-dr-phoenix-az-85048-28587ded",
+      "https://www.gileshometeamaz.com/search/arizona/phoenix/remington-trace-lot-110-217-tr-a-f/4138-e-tanglewood-drive-bid-35-7068179",
+      "https://www.homesbymarco.com/properties/4138-e-tanglewood-dr-phoenix-az-85048/8697781/13731244"
     ]
   },
   {
@@ -42,6 +86,23 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.zillow.com/homedetails/5654448_zpid/",
       "https://www.johnkurtzhomes.com/listings/9828-starwood-drive-charlotte-243901778",
       "https://gnzrealty.com/home/9828-starwood-dr-charlotte-nc-28215-9e656b44"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/9828-Starwood-Dr_Charlotte_NC_28215_M63316-54990",
+      "https://www.homes.com/property/9828-starwood-dr-charlotte-nc/8r5xc8tm4bcc8/",
+      "https://www.compass.com/homedetails/9828-Starwood-Dr-Charlotte-NC-28215/XP4MH_pid/",
+      "https://www.coldwellbankerhomes.com/nc/charlotte/9828-starwood-dr/pid_73249016/",
+      "https://www.century21.com/homes/detail/nc/charlotte/9828-starwood-dr/lid-P00800000HGGIxRY9jkfXsCvB2WSQFV0hLt5E7OU",
+      "https://chadhowery.kw.com/property/9828-Starwood-Drive-Charlotte-NC-28215/2151947277211958",
+      "https://www.bhhs.com/homes-for-sale/nc/9828-starwood-drive-charlotte-28215/pid-438138323",
+      "https://www.bhhscarolinas.com/property/44-4418077-9828-starwood-drive-charlotte-NC-28215",
+      "https://www.cbadvantage.com/showcase/9828-starwood-drive-charlotte-nc-28215/id_7028847",
+      "https://www.lakenormanrealty.com/p/9828-Starwood-Drive-Charlotte-NC-28215/dmgsid_78205046",
+      "https://www.seacoastrealty.com/for-sale/9828-starwood-drive-charlotte-nc-28215/id_3545483",
+      "https://www.terravistarealty.com/uid/9828-Starwood-Drive/Charlotte/NC/28215/1003693384",
+      "https://www.terravistarealty.com/tvid-property-details.cfm?TVID=1003693144",
+      "https://hotpads.com/9828-starwood-dr-charlotte-nc-28215-1js84se/pad",
+      "https://www.apartments.com/9828-starwood-dr-charlotte-nc/lqnzc9f/"
     ]
   },
   {
@@ -51,6 +112,22 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.zillow.com/homedetails/61469624_zpid/",
       "https://austinhartley.realgeeks.com/property/6283032/",
       "https://perfecthouseforyou.realgeeks.com/property/6283032/"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/5062-Perth-St_Denver_CO_80249_M22729-21204",
+      "https://www.homes.com/property/5062-perth-st-denver-co/z5hw8916s4twr/",
+      "https://www.compass.com/homedetails/5062-Perth-St-Denver-CO-80249/12DBCH_pid/",
+      "https://www.coldwellbankerhomes.com/co/denver/5062-perth-st/pid_72945706/",
+      "https://www.momentumrealtycolorado.com/property/19-6283032-5062-perth-st-denver-CO-80249",
+      "https://www.slifersmithandframptonrealestate.com/property/6-6283032-5062-perth-street-denver-CO-80249",
+      "https://www.elliman.com/listing/5062-perth-st-denver-co-80249/33521511",
+      "https://www.explorespringshomes.com/search/colorado/denver/green-valley-ranch/5062-perth-street-bid-80-6283032",
+      "https://www.firstsummitrealty.com/homes-for-sale-sold-details/5062-PERTH-STREET-DENVER-CO-80249/6283032/16/",
+      "https://guidere.com/home-search/listings/7984276563312026417-5062-Perth-Street",
+      "https://kennarealestate.com/home/5062-perth-st-denver-co-80249-a6a9e6ab",
+      "https://klester.smartdenverhomesearch.com/property/5062-perth-st-denver-co-80249/pid-1806479401/?src=2",
+      "https://rachelgallegos.com/home-search/listings/7984276563312026417-5062-Perth-Street",
+      "https://www.facebook.com/kathi.farrellweaver/posts/j-u-s-t-l-i-s-t-e-d5062-perth-street-denver-co-802494-beds-3-baths-1942-sf-450kt/10235918946977179/"
     ]
   },
   {
@@ -63,6 +140,18 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.floridaneighborhoodrealty.com/property/TB8543033/",
       "https://www.beycome.com/14732-SAN-MARSALA-COURT/STELTB8543033",
       "https://bexrealty.com/FL/Tampa/14732-san-marsala-court/home/MFRTB8543033"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/14732-San-Marsala-Ct_Tampa_FL_33626_M69071-47711",
+      "https://www.homes.com/property/14732-san-marsala-ct-tampa-fl/y00rwg8zl24v4/",
+      "https://www.estately.com/listings/info/14732-san-marsala-court-tampa-fl-33626",
+      "https://www.coldwellbankerhomes.com/fl/tampa/14732-san-marsala-ct/pid_73299646/",
+      "https://www.edinarealty.net/property/24-TB8543033-14732-san-marsala-court-tampa-FL-33626",
+      "https://brianbuonaiuto.jpar.com/property/24-TB8543033-14732-san-marsala-court-tampa-FL-33626",
+      "https://www.realpha.com/property/14732-san-marsala-court-tampa-fl-33626/7091854136638759705",
+      "https://siftargroup.com/properties/14732-san-marsala-ct-tampa-fl-us-33626-mfrtb8543033",
+      "https://singingrealtortampa.com/listing-detail/1188295991/14732-SAN-MARSALA-CT-Tampa-FL",
+      "https://www.soldtheneighborhood.com/property/TB8543033/"
     ]
   },
   {
@@ -72,6 +161,20 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.zillow.com/homedetails/121390342_zpid/",
       "https://www.vrmproperties.com/Property-For-Sale/28501/312-parmley-ln-nashville-tn-37207",
       "https://granthammond.com/idx/mls-3602048-312_parmley_ln_nashville_tn_37207"
+    ],
+    "confirmed": [
+      "https://www.trulia.com/home/312-parmley-ln-nashville-tn-37207-121390342",
+      "https://www.realtor.com/realestateandhomes-detail/312-Parmley-Ln_Nashville_TN_37207_M88479-81438",
+      "https://angelamcandrew.com/home-search/listings/4324745903676553011-312-Parmley-Ln",
+      "https://www.granthammond.com/property/312-parmley-ln-nashville-tn-37207/",
+      "https://henderson-team.com/listing-detail/1190000244/312-Parmley-Ln-Nashville-TN/",
+      "https://maxhousere.com/home/312-parmley-ln-nashville-tn-37207-2baacd66",
+      "https://www.mcarthursanders.com/homes-for-sale/312-Parmley-Ln-Nashville-TN-37207-434588014",
+      "https://www.middletnhomeexpert.com/property-search/detail/38/3246933/312-parmley-ln-nashville-tn-37207/",
+      "https://www.nashvillehomeviewer.com/homes-for-sale-sold-details/312-PARMLEY-LN-NASHVILLE-TN-37207/3246933/61/",
+      "https://www.nashvillesmls.com/listing/3602048-312-parmley-ln-nashville-tn-37207/",
+      "https://onwardre.com/home-search/listings/4324745903676553011-312-Parmley-Ln",
+      "https://sherryerickson.com/listing-detail/1190000244/312-Parmley-Ln-Nashville-TN/"
     ]
   },
   {
@@ -80,6 +183,17 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
       "https://www.redfin.com/OR/Portland/3114-SE-Lincoln-St-97214/home/25772877",
       "https://www.zillow.com/homedetails/3114-SE-Lincoln-St-Portland-OR-97214/53958423_zpid/",
       "https://www.coldwellbankerhomes.com/or/portland/3114-se-lincoln-st/pid_72815754/"
+    ],
+    "confirmed": [
+      "https://www.realtor.com/realestateandhomes-detail/3114-SE-Lincoln-St_Portland_OR_97214_M17342-23418",
+      "https://www.homes.com/property/3114-se-lincoln-st-portland-or/m4pb4hxt4y83c/",
+      "https://www.compass.com/homedetails/3114-SE-Lincoln-St-Portland-OR-97214/1W580_pid/",
+      "https://www.bhhsrep.com/realestate/details/130951537/3114-se-lincoln-st-portland-or-97214",
+      "https://www.cascadehasson.com/realestate/details/130951537/3114-se-lincoln-street-portland-or-97214",
+      "https://laurenrosehomes.com/homes/3114-se-lincoln-st-portland",
+      "https://www.realtyofamerica.com/detail/OR/Portland/3114-Se-LINCOLN-St/59ee9f49-1859-45f0-b3c4-fafda95f6aea",
+      "https://www.realtyportland.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/",
+      "https://www.weknowportland.com/property-search/detail/53/131894435/3114-se-lincoln-st-portland-or-97214/"
     ]
   },
   {
@@ -87,6 +201,21 @@ export const SELFTEST_HOMES: { address: string; expect: string[] }[] = [
     "expect": [
       "https://www.redfin.com/GA/Atlanta/89-Montgomery-St-SE-30317/home/23692603",
       "https://homesbymarco.com/properties/89-montgomery-st-atlanta-ga-30317/1436273"
+    ],
+    "confirmed": [
+      "https://www.zillow.com/homedetails/89-Montgomery-St-Atlanta-GA-30317/14467422_zpid/",
+      "https://www.trulia.com/home/89-montgomery-st-atlanta-ga-30317-14467422",
+      "https://www.realtor.com/realestateandhomes-detail/89-Montgomery-St-SE_Atlanta_GA_30317_M65665-52772",
+      "https://www.compass.com/homedetails/89-Montgomery-St-SE-Atlanta-GA-30317/NR2C8_pid/",
+      "https://www.coldwellbankerhomes.com/ga/atlanta/89-montgomery-street-se/pid_73043229/",
+      "https://www.bhgre.com/home/detail/ga/atlanta/89-montgomery-st-se/lid-P00800000HFdTm4XEDr5gmJKe3EZuICWRmYuXHQ8",
+      "https://www.annakintown.com/search/georgia/atlanta/edgewood/89-montgomery-st-se-bid-22-10825102",
+      "https://beckycrawford.bhhsgeorgia.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721",
+      "https://ivyleaguerealtyga.lofty.me/listing-detail/1187540123/89-Montgomery-ST-SE-Atlanta-GA",
+      "https://www.omegahome.com/idx/listing/GeorgiaMLS/10825102/89-montgomery-st-se-georgiamls-10825102/",
+      "https://pamsantoro.bhhsgeorgia.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721",
+      "https://www.sixbricksrealty.com/sold-listing/detail/1198833115/89-Montgomery-ST-SE-Atlanta-GA",
+      "https://summitatgateway.harrynorman.com/realestate/details/20633986/89-montgomery-street-se-atlanta-ga-30317/10701721"
     ]
   },
   {
@@ -109,16 +238,22 @@ function pathKey(u: string): string {
 
 export interface SelftestRow {
   address: string;
+  /** Pages in this home's list (original + confirmed). */
   expected: number;
   found: number;
   missed: string[];
+  /** The original hand-collected list only. */
+  origExpected: number;
+  origFound: number;
   total: number;
   lookups: { key: string; ok: boolean; found: number; error?: string }[];
   queryErrors: number;
   /** First search error, e.g. "auth: HTTP 403 Unauthorized", to diagnose failed searches. */
   firstError?: string;
-  /** Results that aren't in the known list, as "confidence | found via | url", to spot junk or new real pages. */
+  /** Results that aren't in the list, as "confidence | found via | url", to spot junk or new real pages. */
   extras: string[];
+  /** Exact-match results that aren't in the list yet: candidates to add after a look. */
+  newExact: number;
   /** How searches ran: "full" (site:/OR allowed) or the simpler fallback. */
   searchMode?: string;
   /** Results with an exact address match, known or not. */
@@ -126,29 +261,45 @@ export interface SelftestRow {
   ms: number;
 }
 
-export async function runSelftest(engine: () => EngineOptions, concurrency = 3): Promise<{ rows: SelftestRow[]; expected: number; found: number; pct: number; exactPages: number; searchMode?: string }> {
+export interface SelftestResult {
+  rows: SelftestRow[];
+  /** Headline: share of the page list found. */
+  expected: number;
+  found: number;
+  pct: number;
+  /** The original 43-page list, kept for comparison with earlier runs. */
+  origExpected: number;
+  origFound: number;
+  origPct: number;
+  exactPages: number;
+  newExact: number;
+  searchMode?: string;
+}
+
+export async function runSelftest(engine: () => EngineOptions, concurrency = 3): Promise<SelftestResult> {
   const rows: SelftestRow[] = [];
   const queue = [...SELFTEST_HOMES];
+  const zpid = (u: string) => u.match(/(\d+)_zpid/)?.[1];
   const worker = async () => {
     for (let h = queue.shift(); h; h = queue.shift()) {
       const r = await runScan(parseAddress(h.address), engine());
-      const got = r.findings.map((f) => pathKey(f.url));
-      const zpidGot = r.findings.filter((f) => f.siteKey === 'zillow').map((f) => f.url.match(/(\d+)_zpid/)?.[1]);
-      const hit = (u: string) => {
-        const z = u.match(/(\d+)_zpid/)?.[1];
-        if (z) return zpidGot.includes(z);
-        return got.includes(pathKey(u));
-      };
-      const missed = h.expect.filter((u) => !hit(u));
-      const known = new Set(h.expect.map(pathKey));
-      const knownZ = new Set(h.expect.map((u) => u.match(/(\d+)_zpid/)?.[1]).filter(Boolean));
+      const got = new Set(r.findings.map((f) => pathKey(f.url)));
+      const zpidGot = new Set(r.findings.filter((f) => f.siteKey === 'zillow').map((f) => zpid(f.url)));
+      const hit = (u: string) => (zpid(u) ? zpidGot.has(zpid(u)) : got.has(pathKey(u)));
+      const list = [...h.expect, ...(h.confirmed ?? [])];
+      const missed = list.filter((u) => !hit(u));
+      const known = new Set(list.map(pathKey));
+      const knownZ = new Set(list.map(zpid).filter(Boolean));
+      const isNew = (u: string) => !known.has(pathKey(u)) && !knownZ.has(zpid(u));
       const extras = r.findings
-        .filter((f) => !known.has(pathKey(f.url)) && !knownZ.has(f.url.match(/(\d+)_zpid/)?.[1]))
+        .filter((f) => isNew(f.url))
         .map((f) => `${f.confidence} | ${f.foundVia?.[0] ?? ''} | ${f.url}`)
         .slice(0, 60);
       rows.push({
-        address: h.address, expected: h.expect.length, found: h.expect.length - missed.length, missed, total: r.findings.length,
-        extras, searchMode: r.diagnostics.searchMode, exact: r.findings.filter((f) => f.confidence === 'exact').length,
+        address: h.address, expected: list.length, found: list.length - missed.length, missed,
+        origExpected: h.expect.length, origFound: h.expect.filter(hit).length, total: r.findings.length,
+        extras, newExact: r.findings.filter((f) => f.confidence === 'exact' && isNew(f.url)).length,
+        searchMode: r.diagnostics.searchMode, exact: r.findings.filter((f) => f.confidence === 'exact').length,
         lookups: r.diagnostics.lookups, queryErrors: r.diagnostics.queryErrors.length, ms: r.diagnostics.durationMs,
         firstError: r.diagnostics.queryErrors[0] ? `${r.diagnostics.queryErrors[0].code}: ${r.diagnostics.queryErrors[0].detail ?? ''}`.trim() : undefined,
       });
@@ -156,8 +307,11 @@ export async function runSelftest(engine: () => EngineOptions, concurrency = 3):
   };
   await Promise.all(Array.from({ length: concurrency }, worker));
   rows.sort((a, b) => a.address.localeCompare(b.address));
-  const expected = rows.reduce((s, r) => s + r.expected, 0);
-  const found = rows.reduce((s, r) => s + r.found, 0);
-  const exactPages = rows.reduce((s, r) => s + r.exact, 0);
-  return { rows, expected, found, pct: expected ? Math.round((found / expected) * 100) : 0, exactPages, searchMode: rows.map((r) => r.searchMode).filter(Boolean).pop() };
+  const sum = (k: keyof SelftestRow) => rows.reduce((s, r) => s + (r[k] as number), 0);
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+  const expected = sum('expected'), found = sum('found'), origExpected = sum('origExpected'), origFound = sum('origFound');
+  return {
+    rows, expected, found, pct: pct(found, expected), origExpected, origFound, origPct: pct(origFound, origExpected),
+    exactPages: sum('exact'), newExact: sum('newExact'), searchMode: rows.map((r) => r.searchMode).filter(Boolean).pop(),
+  };
 }
