@@ -45,7 +45,21 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
       {error && <p className="mt-4 text-sm text-red-700">{error}</p>}
       {res && (
         <div className="mt-8">
-          <p className="font-serif text-4xl font-semibold text-navy-900">{res.sitesPct ?? res.namedPct ?? res.pct}%</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { label: 'Big portals (Zillow, Realtor.com, Redfin, Homes.com, Trulia)', value: `${res.portalsPct}%`, detail: `${res.portalsFound} of ${res.portalsExpected}`, goal: 'Goal: 95%+', ok: res.portalsPct >= 95 },
+              { label: 'All big sites (portals, national brokerages, social)', value: `${res.sitesPct}%`, detail: `${res.sitesFound} of ${res.sitesExpected}`, goal: 'Goal: 85% to launch, 90% after', ok: res.sitesPct >= 85 },
+              { label: 'Results that look like another home', value: `${res.wrongPer50} in 50`, detail: `${res.wrongHome} of ${res.results} results`, goal: 'Goal: at most 1 in 50', ok: res.wrongPer50 <= 1 },
+            ].map((g) => (
+              <div key={g.label} className={`card p-4 ${g.ok ? 'border-sage-300' : 'border-amber-300'}`}>
+                <p className="text-xs text-navy-500">{g.label}</p>
+                <p className="font-serif text-3xl font-semibold text-navy-900">{g.value}</p>
+                <p className="text-xs text-navy-500">{g.detail}</p>
+                <p className={`mt-1 text-xs font-medium ${g.ok ? 'text-sage-700' : 'text-amber-700'}`}>{g.ok ? '✓ ' : ''}{g.goal}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 font-serif text-xl font-semibold text-navy-900">{res.sitesPct ?? res.namedPct ?? res.pct}%</p>
           <p className="text-sm text-navy-500">{res.sitesFound} of {res.sitesExpected} big sites found the home on (portals, brand brokerages, social; any page on the site counts)</p>
           <p className="mt-1 text-sm text-navy-500">Pages on big sites: {res.namedFound} of {res.namedExpected} ({res.namedPct}%)</p>
           <p className="mt-1 text-sm text-navy-500">All confirmed pages, including small agent sites: {res.found} of {res.expected} ({res.pct}%)</p>
@@ -73,7 +87,7 @@ export default function Selftest({ ctx }: { ctx: AppCtx }) {
                 {res.rows.map((r) => (
                   <tr key={r.address} className="border-t border-navy-100 align-top">
                     <td className="py-2 pr-3 text-navy-800">{r.address}{r.missed.length > 0 && <details className="text-xs text-navy-400"><summary>missed {r.missed.length}</summary>{r.missed.map((m) => <div key={m} className="break-all">{m}</div>)}</details>}</td>
-                    <td className="pr-3">{r.namedFound}/{r.namedExpected} named<span className="block text-xs text-navy-400">{r.found}/{r.expected} all</span>{r.namedMissed?.length > 0 && <details className="text-xs text-navy-400"><summary>named missed</summary>{r.namedMissed.map((m) => <div key={m} className="break-all">{m}</div>)}</details>}</td>
+                    <td className="pr-3">{r.namedFound}/{r.namedExpected} named<span className="block text-xs text-navy-400">{r.found}/{r.expected} all</span>{r.wrongHome?.length > 0 && <details className="text-xs text-amber-700"><summary>{r.wrongHome.length} look like another home</summary>{r.wrongHome.map((m) => <div key={m} className="break-all">{m}</div>)}</details>}{r.namedMissed?.length > 0 && <details className="text-xs text-navy-400"><summary>named missed</summary>{r.namedMissed.map((m) => <div key={m} className="break-all">{m}</div>)}</details>}</td>
                     <td className="pr-3">{r.total}{r.newExact ? <span className="block text-xs text-navy-400">{r.newExact} new</span> : null}</td>
                     {['zillow'].map((k) => {
                       const l = r.lookups.find((x) => x.key === k);
