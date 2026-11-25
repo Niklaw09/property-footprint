@@ -16,7 +16,7 @@ const results = {
 };
 
 describe('proof before purchase', () => {
-  it('locked results show the page title, snippet and photo, but never the page link', async () => {
+  it('locked results show the page title and snippet, but never the page link or a photo', async () => {
     const svc = createService({ store: memoryStore(), engine: () => ({ provider: fixtureProvider(results), lookups: [zillow] }) });
     const { view } = await svc.scan({ address: '14425 American Kestrel Dr, Austin, TX 78738', userId: null, ip: '1.1.1.1' });
     const locked = view.findings.filter((f) => f.locked) as any[];
@@ -24,7 +24,7 @@ describe('proof before purchase', () => {
     expect(est.title).toContain('14425 American Kestrel Dr');
     expect(est.snippet).toContain('4 beds');
     expect(est.snippet).not.toContain('estately.com/listings');
-    expect(est.thumb).toBe('https://encrypted-tbn0.gstatic.com/images?q=tbn:abc');
+    expect(est.thumb).toBeNull();
     expect(est.photos).toBe('seen');
     const json = JSON.stringify(locked);
     expect(json).not.toContain('estately.com/listings');
