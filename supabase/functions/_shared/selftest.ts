@@ -2,7 +2,7 @@
 // `expect` is the original hand-collected list. `confirmed` adds the pages a live run found with an exact address
 // match and that were checked by hand after the Nov 19, 2026 runs (junk, other homes and unverifiable social posts left out).
 // Together they are the page list the headline score is measured against. Add new real pages here after each run.
-import { parseAddress } from './address.ts';
+import { parseAddress, urlText, type Address } from './address.ts';
 import { runScan, type EngineOptions } from './engine.ts';
 import { isPrioritySite, siteFor } from './sites.ts';
 import type { Candidate, PortalLookup, SearchProvider, SearchQuery } from './providers.ts';
@@ -543,8 +543,40 @@ export interface RawHome {
   lookups: { key: string; rows: Candidate[]; error?: string }[];
 }
 
+/** Goal 1: the five big portals. */
+export const TOP_PORTALS = ['zillow', 'realtor', 'redfin', 'homes', 'trulia'];
+
+/**
+ * Goal 3: results that look like a different home. The link names this street but not this house number (or names
+ * another unit). The engine should have dropped these. They're listed so each one can be checked by hand.
+ */
+export function wrongHomeSuspects(a: Address, urls: string[]): string[] {
+  const street = a.street.split(' ')[0];
+  if (!street) return [];
+  const esc = street.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // The number right before the street name ("1964 hydrangea", "312 e parmley") is the page's house number.
+  const re = new RegExp(` (\\d+) (?:(?:n|s|e|w|ne|nw|se|sw|north|south|east|west) )?${esc} `, 'g');
+  const ours = a.number.toLowerCase();
+  return urls.filter((u) => {
+    const t = ` ${urlText(u).toLowerCase().replace(/([a-z])(\d)/g, '$1 $2').replace(/\s+/g, ' ')} `;
+    const nums = [...t.matchAll(re)].map((m) => m[1]);
+    if (nums.length && !nums.some((n) => ours === n || ours.startsWith(n + ' ') || ours.endsWith(n))) return true;
+    if (a.unit && nums.length) {
+      const m = t.match(/ (?:unit|apt|ste|suite) ([a-z0-9]+) /);
+      if (m && m[1] !== a.unit.toLowerCase()) return true;
+    }
+    return false;
+  });
+}
+
 export interface SelftestRow {
   address: string;
+  /** Goal 1: the five big portals this home is known to be on, and how many the scan found. */
+  portalsExpected: number;
+  portalsFound: number;
+  portalsMissed: string[];
+  /** Goal 3: results that look like another home (see wrongHomeSuspects). */
+  wrongHome: string[];
   set: 'A' | 'B';
   /** Pages in this home's list (original + confirmed). */
   expected: number;
@@ -603,6 +635,14 @@ export interface SelftestResult {
   newExact: number;
   photos: { seen: number; none: number; unknown: number };
   searchMode?: string;
+  /** Goal 1 (target 95%): the five big portals. */
+  portalsExpected: number;
+  portalsFound: number;
+  portalsPct: number;
+  /** Goal 3 (target: at most 1 in 50): results that look like another home, out of all results. */
+  wrongHome: number;
+  results: number;
+  wrongPer50: number;
   /** The first 10 homes only, to compare with runs before set B was added. */
   setA?: { sitesExpected: number; sitesFound: number; sitesPct: number; namedPct: number };
   /** Raw searches per home, for offline replay. */
@@ -701,6 +741,11 @@ export async function runSelftest(
         namedExpected: list.filter(isNamedSite).length, namedFound: list.filter((u) => isNamedSite(u) && hit(u)).length,
         namedMissed: missed.filter(isNamedSite),
         ...siteCoverage(list.filter(isNamedSite), r.findings.map((f) => f.siteKey)),
+        ...(() => {
+          const c = siteCoverage(list.filter((u) => TOP_PORTALS.includes(siteFor(u)?.key ?? '')), r.findings.map((f) => f.siteKey));
+          return { portalsExpected: c.sitesExpected, portalsFound: c.sitesFound, portalsMissed: c.sitesMissed };
+        })(),
+        wrongHome: wrongHomeSuspects(parseAddress(h.address), r.findings.map((f) => f.url)),
         searches: (r.diagnostics.perQuery ?? []).filter((q) => q.sites).map((q) => `${q.label}[${q.sites}]=${q.n}`),
         extras, newExact: r.findings.filter((f) => f.confidence === 'exact' && isNew(f.url)).length,
         searchMode: r.diagnostics.searchMode, exact: r.findings.filter((f) => f.confidence === 'exact').length,
@@ -727,6 +772,9 @@ export function summarize(rowsIn: SelftestRow[]): SelftestResult {
     namedExpected, namedFound, namedPct: pct(namedFound, namedExpected),
     sitesExpected, sitesFound, sitesPct: pct(sitesFound, sitesExpected),
     exactPages: sum('exact'), newExact: sum('newExact'),
+    portalsExpected: sum('portalsExpected'), portalsFound: sum('portalsFound'), portalsPct: pct(sum('portalsFound'), sum('portalsExpected')),
+    wrongHome: rows.reduce((s, r) => s + r.wrongHome.length, 0), results: sum('total'),
+    wrongPer50: sum('total') ? Math.round((rows.reduce((s, r) => s + r.wrongHome.length, 0) / sum('total')) * 500) / 10 : 0,
     setA: (() => {
       const a = rows.filter((r) => r.set === 'A');
       const e = a.reduce((s, r) => s + r.sitesExpected, 0), f = a.reduce((s, r) => s + r.sitesFound, 0);
