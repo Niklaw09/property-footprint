@@ -86,10 +86,10 @@ export default function Report({ ctx, id }: { ctx: AppCtx; id: string }) {
   };
   // Named sites first; within a group, exact matches before possible ones (the server already sorts by confidence).
   // Pages with no photos seen go last: there's less to remove there.
+  // No photo previews: Google's picture for a portal page is often a nearby home, and the photos aren't ours to show.
   const named = (f: ViewFinding) => (f.locked ? 1 : f.siteKey.startsWith('web:') ? 1 : 0);
   const noPhotos = (f: ViewFinding) => (f.photos === 'none' ? 1 : 0);
-  const hasPic = (f: ViewFinding) => (f.locked ? !!f.thumb : !!f.thumbnails[0]) ? 0 : 1;
-  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => noPhotos(a) - noPhotos(b) || named(a) - named(b) || hasPic(a) - hasPic(b)) })).filter((g) => g.items.length);
+  const grouped = CATS.map((c) => ({ c, items: view.findings.filter((f) => f.category === c).sort((a, b) => noPhotos(a) - noPhotos(b) || named(a) - named(b)) })).filter((g) => g.items.length);
 
   const setTask = async (f: OpenFinding, status: TaskStatus, note?: string) => {
     await ctx.api.task(view.id, f.id, status, note ?? f.task?.note ?? '');
@@ -311,7 +311,6 @@ function Evidence({ f }: { f: OpenFinding }) {
 function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member: boolean; onRemove: () => void; onStatus: (s: TaskStatus) => void }) {
   const { t, lang } = useLang();
   const done = f.task?.status === 'removed' || !!f.goneVerifiedAt;
-  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`card flex flex-col ${done ? 'opacity-70' : ''}`}>
       <div className="flex items-start justify-between gap-3">
@@ -327,7 +326,6 @@ function FindingCard({ f, member, onRemove, onStatus }: { f: OpenFinding; member
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
-        {f.thumbnails[0] && imgOk && <img src={f.thumbnails[0]} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-[72px] w-[104px] shrink-0 rounded-lg bg-cream-200 object-cover ring-1 ring-navy-100" />}
       </div>
       {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
       {f.snippet && <p className="mt-1 line-clamp-2 text-xs text-navy-500">{f.snippet}</p>}
@@ -483,7 +481,6 @@ function ReviewCard({ view, ctx, started }: { view: ReportView; ctx: AppCtx; sta
 
 function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>; onUnlock: () => void }) {
   const { t, lang } = useLang();
-  const [imgOk, setImgOk] = useState(true);
   return (
     <button onClick={onUnlock} className="card group flex flex-col text-left transition hover:border-sage-300">
       <div className="flex items-start justify-between gap-3">
@@ -494,9 +491,7 @@ function LockedCard({ f, onUnlock }: { f: Extract<ViewFinding, { locked: true }>
           </div>
           <p className="mt-0.5 truncate text-xs text-navy-400">{f.domain}</p>
         </div>
-        {f.thumb && imgOk
-          ? <img src={f.thumb} alt={t.proofAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} className="h-[72px] w-[104px] shrink-0 rounded-lg bg-cream-200 object-cover ring-1 ring-navy-100" />
-          : <Lock className="h-4 w-4 shrink-0 text-navy-300 group-hover:text-sage-600" />}
+        <Lock className="h-4 w-4 shrink-0 text-navy-300 group-hover:text-sage-600" />
       </div>
       {f.title && <p className="mt-2 line-clamp-2 text-sm text-navy-700">{f.title}</p>}
       {f.snippet && <p className="mt-1 line-clamp-2 text-xs text-navy-500">{f.snippet}</p>}

@@ -360,7 +360,7 @@ export function createService(cfg: ServiceConfig) {
         return {
           locked: true, id: r.fid, siteName: r.data.siteName, category: r.data.category, media: r.data.media, confidence: r.data.confidence,
           domain: r.data.domain, title: clip(stripUrls(r.data.title), 110), snippet: clip(stripUrls(r.data.snippet), 180),
-          thumb: r.data.thumbnails?.[0] ?? null, photos: r.data.photos,
+          thumb: null, photos: r.data.photos,
         };
       }
       const t = tasks.get(r.fid);
